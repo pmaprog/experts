@@ -1,13 +1,11 @@
 from datetime import datetime
 
-from exproj.db import get_session
-from exproj.db.models import User
-
-from .models import Question, Answer
+from .db import get_session
+from .db import User, Question, Answer
 from .exceptions import QuestionNotFound
 
 
-def get_questions():
+def get_questions(order='desc'):
     with get_session() as s:
         return s.query(Question).order_by(Question.create_time.desc()).all()
 

@@ -1,25 +1,19 @@
 from sqlalchemy import (Column, Integer, String, ForeignKey,
                         DateTime, Boolean, UniqueConstraint)
 from sqlalchemy.dialects.postgresql import ENUM, UUID
+from sqlalchemy.orm import relationship, backref
 from flask_login import UserMixin
 
 from datetime import datetime
 import uuid
 
-from . import Base, get_session
+from . import Base
 from exproj import config
 
 
-Status = ENUM('active', 'deleted',
-              name='status')
 User_status = ENUM('unconfirmed', 'active', 'deleted', 'banned',
                    name='user_status')
-Event_status = ENUM('unconfirmed', 'future', 'past',
-                    name='event_status')
-Participation_level = ENUM('creator', 'presenter', 'guest',
-                           name='participation_level')
-Participation_status = ENUM('unknown', 'confirmed', 'declined',
-                            name='participation_status')
+Question_permissions = ENUM('all', 'experts', 'some_experts', name='permissions')
 
 
 class User(Base, UserMixin):
@@ -43,30 +37,55 @@ class User(Base, UserMixin):
     def full_name(self):
         return self.name + ' ' + self.surname
 
-    # def get_questions(self):
-    #     with get_session() as s:
-    #         return s.query(User).get(self.id).questions
 
-
-class Event(Base):
-    __tablename__ = 'events'
+class Question(Base):
+    __tablename__ = 'questions'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    sm_description = Column(String, nullable=False)
-    description = Column(String, nullable=False)
-    created = Column(DateTime, default=datetime.utcnow, nullable=False)
-    date_time = Column(DateTime, nullable=False)
-    # questionable
-    phone = Column(String, nullable=False)
-    mail = Column(String, nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    question = Column(String(128), nullable=False)
+    desc = Column(String(1024), nullable=False)
+    create_time = Column(DateTime, default=datetime.utcnow, nullable=False)
+    views = Column(Integer, default=0, nullable=False)
+    # edit_time = Column(DateTime)
+    # warns
+    # warn_by
+    # areas
+    # files
+
+    votes = Column(Integer, default=0, nullable=False)
+    voted_up = Column(Integer, ForeignKey('users.id'))
+    voted_down = Column(Integer, ForeignKey('users.id'))
+    perms = Column(Question_permissions, default='all', nullable=False)  # приватность (все, только эксперты, только эксперты выбранных областей)
+    archived = Column(Boolean, default=False, nullable=False)
+
+    author = relationship('User',
+                          foreign_keys='Question.user_id',
+                          backref=backref('questions', lazy='dynamic'))
+    # edited_by = relationship('User',
+    #                          foreign_keys='')
 
 
-class Participation(Base):
-    __tablename__ = 'participations'
+class Answer(Base):
+    __tablename__ = 'answers'
 
     id = Column(Integer, primary_key=True)
-    event = Column(Integer, ForeignKey('events.id'), nullable=False)
-    participant = Column(Integer, ForeignKey('users.id'), nullable=False)
-    participation_level = Column(Participation_level, default='guest', nullable=False)
-    participation_status = Column(Participation_status, default='unknown', nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    q_id = Column(Integer, ForeignKey('questions.id'), nullable=False)
+    create_time = Column(DateTime, default=datetime.utcnow(), nullable=False)
+    text = Column(String, nullable=False)
+    votes = Column(Integer, default=0, nullable=False)
+    voted_up = Column(Integer, ForeignKey('users.id'))
+    voted_down = Column(Integer, ForeignKey('users.id'))
+    # warns
+    # warn_by
+    # edit_time
+    # edited_by
+
+    author = relationship('User',
+                          foreign_keys='Answer.user_id',
+                          backref=backref('answers', lazy='dynamic'))
+
+    question = relationship('Question',
+                            foreign_keys='Answer.q_id',
+                            backref=backref('answers', lazy='dynamic'))

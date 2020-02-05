@@ -1,6 +1,17 @@
-class NotJsonError(Exception):
+class Error(Exception):
     pass
 
 
-class NoData(Exception):
+# todo
+class QuestionNotFound(Error):
+
+    def __init__(self, id):
+        self.id = id
+
+
+class NotJsonError(Error):
+    pass
+
+
+class NoData(Error):
     pass

@@ -3,7 +3,7 @@ import string
 import smtplib
 from email.message import EmailMessage
 
-from exproj import cfg
+from . import config
 
 
 def random_string_digits(str_len=8):
@@ -13,14 +13,14 @@ def random_string_digits(str_len=8):
 
 
 def send_email(mail, link):
-    server = smtplib.SMTP_SSL(cfg.SMTP_HOST, 465)
-    server.login(cfg.MAIL_LOGIN, cfg.MAIL_PASSWORD)
-    message = cfg.SITE_ADDR + "/confirm/" + link
+    server = smtplib.SMTP_SSL(config.SMTP_HOST, 465)
+    server.login(config.MAIL_LOGIN, config.MAIL_PASSWORD)
+    message = config.SITE_ADDR + "/confirm/" + link
 
     msg = EmailMessage()
     msg.set_content(message)
     msg['Subject'] = "confirmation link"
-    msg['From'] = cfg.MAIL_LOGIN
+    msg['From'] = config.MAIL_LOGIN
     msg['To'] = mail
     server.send_message(msg)
     server.quit()

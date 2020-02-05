@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv()
 import urllib3
 from argparse import ArgumentParser
 import exproj
@@ -20,7 +22,10 @@ def main():
     if args.password:
         db.create_tables(sha256_crypt.encrypt(args.password))
 
-    exproj.run(debug=args.debug)
+    if args.debug:
+        exproj.run_debug()
+    else:
+        exproj.run()
 
 
 if __name__ == '__main__':
