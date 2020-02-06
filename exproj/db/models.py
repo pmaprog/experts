@@ -33,6 +33,9 @@ class User(Base, UserMixin):
     def get_id(self):
         return self.cookie_id
 
+    def change_password(self):
+        pass
+
     @property
     def full_name(self):
         return self.name + ' ' + self.surname

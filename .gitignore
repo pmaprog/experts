@@ -111,16 +111,16 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
-# setup.sh
-setup.sh
-
 # local logs, git ext and more
 service.log
 git-aacp
 git-ak
 
-# sublime text
+# ide
+.idea/
+.vscode/
 *.sublime-*
 
 # other
+setup.sh
 todo.txt

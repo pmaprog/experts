@@ -56,3 +56,17 @@ def confirm_user(confirmation_link):
             return 'user confirmed'
         else:
             return 'user is currently confirmed by this link'
+
+
+def update_profile(id, args):
+    with get_session() as s:
+        user = s.query(User).filter(
+            User.id == id,
+            User.status == 'active',
+            ).one_or_none()
+
+        for arg, val in args.items():
+            if hasattr(user, arg):
+                setattr(user, arg, val)
+            else:
+                raise KeyError(arg)
