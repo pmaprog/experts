@@ -5,9 +5,13 @@ from .db import User, Question, Answer
 from .exceptions import QuestionNotFound
 
 
-def get_questions(order='desc'):
+def get_questions(order=None):
     with get_session() as s:
-        return s.query(Question).order_by(Question.create_time.desc()).all()
+        query = s.query(Question)
+        if order == 'desc':
+            query = query.order_by(Question.create_time.desc())
+        questions = [q.as_dict() for q in query.all()]
+        return questions
 
 
 def get_question(id):
@@ -28,7 +32,7 @@ def is_question_exists(id):
         return s.query(Question).filter_by(id=id).one_or_none() is not None
 
 
-def new_question(user_id, question, desc):
+def create_question(user_id, question, desc):
     question = Question(
         user_id=user_id,
         question=question,

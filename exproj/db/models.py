@@ -6,6 +6,7 @@ from flask_login import UserMixin
 
 from datetime import datetime
 import uuid
+import bcrypt
 
 from . import Base
 from exproj import config
@@ -33,8 +34,16 @@ class User(Base, UserMixin):
     def get_id(self):
         return self.cookie_id
 
-    def change_password(self):
-        pass
+    def change_password(self, old_password, new_password):
+        opw = str(old_password).encode('utf-8')
+        pw = str(self.password).encode('utf-8')
+        if bcrypt.checkpw(opw, pw):
+            npw = bcrypt.hashpw(str(new_password).encode('utf-8'),
+                                bcrypt.gensalt())
+            self.password = npw.decode('utf-8')
+            return 1
+        else:
+            return 0
 
     @property
     def full_name(self):
@@ -68,6 +77,10 @@ class Question(Base):
     # edited_by = relationship('User',
     #                          foreign_keys='')
 
+    def as_dict(self):
+        d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        return d
+
 
 class Answer(Base):
     __tablename__ = 'answers'
@@ -92,3 +105,7 @@ class Answer(Base):
     question = relationship('Question',
                             foreign_keys='Answer.q_id',
                             backref=backref('answers', lazy='dynamic'))
+
+    def as_dict(self):
+        d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        return d
