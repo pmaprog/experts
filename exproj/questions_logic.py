@@ -5,7 +5,7 @@ from .db import User, Question, Answer
 from .exceptions import QuestionNotFound
 
 
-def get_questions(order=None):
+def get_all(order=None):
     with get_session() as s:
         query = s.query(Question)
         if order == 'desc':
@@ -14,12 +14,12 @@ def get_questions(order=None):
         return questions
 
 
-def get_question(id):
+def get(id):
     with get_session() as s:
         q = s.query(Question).get(id)
         if q is None:
             raise QuestionNotFound(id)
-        return q
+        return q.as_dict()
 
 
 def get_user_questions(user_id):
@@ -27,12 +27,7 @@ def get_user_questions(user_id):
         return s.query(User).get(user_id).questions
 
 
-def is_question_exists(id):
-    with get_session() as s:
-        return s.query(Question).filter_by(id=id).one_or_none() is not None
-
-
-def create_question(user_id, question, desc):
+def create(user_id, question, desc):
     question = Question(
         user_id=user_id,
         question=question,
@@ -43,7 +38,8 @@ def create_question(user_id, question, desc):
         return s.query(Question).order_by(-Question.id).first().id
 
 
-def delete_question(id):
+# refactor this
+def delete(id):
     with get_session() as s:
         q = s.query(Question).get(id)
         if q is None:
@@ -51,6 +47,19 @@ def delete_question(id):
         for i in q.answers.all():
             s.delete(i)
         s.delete(q)
+
+
+def update(id, attrs):
+    with get_session() as s:
+        q = s.query(Question).get(id)
+        if q is None:
+            raise QuestionNotFound(id)
+
+        for attr, val in attrs.items():
+            if hasattr(q, attr):
+                setattr(q, attr, val)
+
+        s.add(q)
 
 
 def get_question_answers(id):

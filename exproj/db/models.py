@@ -79,6 +79,7 @@ class Question(Base):
 
     def as_dict(self):
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        d['create_time'] = self.create_time.timestamp()
         return d
 
 
@@ -108,4 +109,5 @@ class Answer(Base):
 
     def as_dict(self):
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        d['create_time'] = self.create_time.timestamp()
         return d
