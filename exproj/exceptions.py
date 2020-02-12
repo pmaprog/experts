@@ -4,7 +4,6 @@ class Error(Exception):
 
 # todo
 class QuestionNotFound(Error):
-
     def __init__(self, id):
         self.id = id
 

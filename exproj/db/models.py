@@ -62,7 +62,7 @@ class Question(Base):
     # edit_time = Column(DateTime)
     # warns
     # warn_by
-    # areas
+    # domains
     # files
 
     votes = Column(Integer, default=0, nullable=False)
@@ -80,6 +80,9 @@ class Question(Base):
     def as_dict(self):
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
         d['create_time'] = self.create_time.timestamp()
+        d['answers'] = []
+        for a in self.answers.all():
+            d['answers'].append(a.as_dict())
         return d
 
 

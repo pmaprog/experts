@@ -1,12 +1,13 @@
 import logging
 
-from flask import Flask
+from flask import Flask, request
 from flask_login import LoginManager
 from gevent.pywsgi import WSGIServer
 from gevent import monkey
 
 from . import config, auth
-from .restful_api import users, questions
+from .exceptions import Error, QuestionNotFound, NotJsonError
+from .restful_api import users, questions, make_400
 
 
 logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s',
@@ -29,6 +30,18 @@ app.register_error_handler(405, restful_api.method_not_allowed)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.user_loader(auth.user_loader)
+
+# todo: change it to new implementation of Request.on_json_loading_failed(e)
+@app.before_request
+def before_request():
+    try:
+        if not request.get_json():
+            raise NotJsonError
+    except Exception as e:
+        return make_400(text="Failed to parse JSON!")
+
+
+from . import errors
 
 
 def run_debug():

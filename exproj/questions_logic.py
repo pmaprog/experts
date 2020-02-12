@@ -5,7 +5,7 @@ from .db import User, Question, Answer
 from .exceptions import QuestionNotFound
 
 
-def get_all(order=None):
+def get_many(order=None):
     with get_session() as s:
         query = s.query(Question)
         if order == 'desc':
@@ -14,11 +14,11 @@ def get_all(order=None):
         return questions
 
 
-def get(id):
+def get(q_id):
     with get_session() as s:
-        q = s.query(Question).get(id)
+        q = s.query(Question).get(q_id)
         if q is None:
-            raise QuestionNotFound(id)
+            raise QuestionNotFound(q_id)
         return q.as_dict()
 
 
@@ -39,35 +39,33 @@ def create(user_id, question, desc):
 
 
 # refactor this
-def delete(id):
+def delete(q_id):
     with get_session() as s:
-        q = s.query(Question).get(id)
+        q = s.query(Question).get(q_id)
         if q is None:
-            raise QuestionNotFound(id)
+            raise QuestionNotFound(q_id)
         for i in q.answers.all():
             s.delete(i)
         s.delete(q)
 
 
-def update(id, attrs):
+def update(q_id, attrs):
     with get_session() as s:
-        q = s.query(Question).get(id)
+        q = s.query(Question).get(q_id)
         if q is None:
-            raise QuestionNotFound(id)
+            raise QuestionNotFound(q_id)
 
         for attr, val in attrs.items():
             if hasattr(q, attr):
                 setattr(q, attr, val)
 
-        s.add(q)
 
-
-def get_question_answers(id):
+def get_question_answers(q_id):
     with get_session() as s:
-        return s.query(Question).get(id).answers.all()
+        return s.query(Question).get(q_id).answers.all()
 
 
-def post_new_answer(q_id, user_id, text):
+def create_new_answer(q_id, user_id, text):
     with get_session() as s:
         answer = Answer(user_id=user_id, q_id=q_id, text=text)
         s.add(answer)
