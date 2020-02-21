@@ -1,4 +1,4 @@
-from exproj.db import User, get_session
+from .db import User, get_session
 from passlib.hash import sha256_crypt
 
 

@@ -1,18 +1,31 @@
+import sys
 import logging
 
-from flask import Flask, request
+from flask import Flask, Request, _request_ctx_stack
 from flask_login import LoginManager
 from gevent.pywsgi import WSGIServer
 from gevent import monkey
 
+logger = logging.getLogger('exproj')
+formatter = logging.Formatter(
+    '[%(asctime)s] [%(levelname)s] %(message)s'
+)
+console_output_handler = logging.StreamHandler(sys.stderr)
+console_output_handler.setFormatter(formatter)
+logger.addHandler(console_output_handler)
+logger.setLevel(logging.INFO)
+
 from . import config, auth
-from .exceptions import Error, QuestionNotFound, NotJsonError
-from .restful_api import users, questions, make_400
+from .exceptions import JSONBadRequest
+from .restful_api import users, questions
 
+def on_json_loading_failed(self, e):
+    ctx = _request_ctx_stack.top
+    if ctx is not None and ctx.app.config.get('DEBUG', False):
+        raise JSONBadRequest('Failed to decode JSON object: {0}'.format(e))
+    raise JSONBadRequest()
 
-logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s',
-                    level=logging.INFO)
-
+Request.on_json_loading_failed = on_json_loading_failed
 
 app = Flask(__name__)
 app.config.update(
@@ -23,34 +36,20 @@ app.config.update(
 app.register_blueprint(users.bp)
 app.register_blueprint(questions.bp)
 
-app.register_error_handler(401, restful_api.unauthorized)
-app.register_error_handler(404, restful_api.route_not_found)
-app.register_error_handler(405, restful_api.method_not_allowed)
-
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.user_loader(auth.user_loader)
-
-# todo: change it to new implementation of Request.on_json_loading_failed(e)
-@app.before_request
-def before_request():
-    try:
-        if not request.get_json():
-            raise NotJsonError
-    except Exception as e:
-        return make_400(text="Failed to parse JSON!")
-
 
 from . import errors
 
 
 def run_debug():
-    logging.info('Started server in debug mode')
+    logger.info('Started server in debug mode')
     app.run(host=config.HOST, port=config.PORT, debug=True)
 
 
 def run():
     monkey.patch_all(ssl=False)
     http_server = WSGIServer((config.HOST, config.PORT), app)
-    logging.info('Started server')
+    logger.info('Started server')
     http_server.serve_forever()

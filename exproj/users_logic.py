@@ -1,8 +1,3 @@
-from . import config
-from .db import *
-from . import util
-
-from .exceptions import NotJsonError, NoData
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import desc
 
@@ -11,6 +6,10 @@ import requests
 import logging
 import os
 import nanoid
+
+from .db import *
+from . import util
+from . import logger
 
 
 def register_user(mail, name, surname, password, lvl=2):
@@ -41,7 +40,7 @@ def register_user(mail, name, surname, password, lvl=2):
             s.add(user)
         if config.DEFAULT_USER_STATUS == 'unconfirmed':
             util.send_email(mail, confirmation_link)
-        logging.info('Registering new user [{}]'.format(mail))
+        logger.info('Registering new user [{}]'.format(mail))
 
 
 def confirm_user(confirmation_link):
@@ -52,7 +51,7 @@ def confirm_user(confirmation_link):
         ).one_or_none()
         if user:
             user.status = 'active'
-            logging.info('User [{}] is confirmed'.format(user.mail))
+            logger.info('User [{}] is confirmed'.format(user.mail))
             return 'user confirmed'
         else:
             return 'user is currently confirmed by this link'

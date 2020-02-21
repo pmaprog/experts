@@ -8,8 +8,9 @@ from datetime import datetime
 import uuid
 import bcrypt
 
-from . import Base
-from exproj import config
+from . import Base, get_session
+from .. import config
+from ..exceptions import QuestionNotFound
 
 
 User_status = ENUM('unconfirmed', 'active', 'deleted', 'banned',
@@ -80,9 +81,6 @@ class Question(Base):
     def as_dict(self):
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
         d['create_time'] = self.create_time.timestamp()
-        d['answers'] = []
-        for a in self.answers.all():
-            d['answers'].append(a.as_dict())
         return d
 
 
@@ -112,5 +110,6 @@ class Answer(Base):
 
     def as_dict(self):
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        d['create_time'] = self.create_time.timestamp()
+        d['create_time'] = self.create_time.isoformat()
+        d['mail'] = self.author.mail
         return d

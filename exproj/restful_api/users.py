@@ -7,7 +7,6 @@ import bcrypt
 from . import *
 from .. import auth, users_logic
 
-from ..exceptions import NotJsonError, NoData
 from sqlalchemy.exc import IntegrityError
 
 
