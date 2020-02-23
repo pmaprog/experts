@@ -1,22 +1,23 @@
-from flask import abort, jsonify
+import json
+from werkzeug.exceptions import HTTPException, BadRequest
+from schema import SchemaError
 
-from . import app
-from .restful_api import make_400, unauthorized, route_not_found, method_not_allowed
-from .exceptions import JSONBadRequest, QuestionNotFound
-
-app.register_error_handler(401, unauthorized)
-app.register_error_handler(404, route_not_found)
-app.register_error_handler(405, method_not_allowed)
-
-app.register_error_handler(QuestionNotFound, route_not_found)
+from . import app, logger
 
 
-@app.errorhandler(Exception)
-def handle_error(error):
-    return make_400(text=str(error))
+@app.errorhandler(HTTPException)
+def handle_http_exception(e):
+    logger.warning(f'{e.code} - [{e}]')  # i think it's not necessary
+
+    response = e.get_response()
+
+    response.data = json.dumps({
+        "description": e.description,
+    })
+    response.content_type = "application/json"
+    return response
 
 
-# @app.errorhandler(JSONBadRequest)
-# def handle_json_error(error):
-#     return jsonify('123')
-#     pass
+@app.errorhandler(SchemaError)
+def handle_schema_error(e):
+    return handle_http_exception(BadRequest(str(e)))

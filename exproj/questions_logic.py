@@ -1,9 +1,11 @@
 from datetime import datetime
-from schema import Schema, And
 
 from .db import get_session
 from .db import User, Question, Answer
-from .exceptions import WrongDataError, QuestionNotFound
+from flask import abort
+from werkzeug.exceptions import BadRequest
+
+from schema import Schema, And, Optional
 
 
 def get_many(offset=None, limit=None):
@@ -15,10 +17,10 @@ def get_many(offset=None, limit=None):
                 offset = int(offset)
                 limit = int(limit)
             except:
-                raise WrongDataError('offset and limit should be numbers')
+                raise BadRequest('offset and limit should be numbers')
 
             if offset < 0 or limit < 1:
-                raise WrongDataError('offset or limit has wrong values')
+                raise BadRequest('offset or limit has wrong values')
 
             data = query.slice(offset, offset + limit)
         else:
@@ -32,7 +34,7 @@ def get(q_id):
     with get_session() as s:
         q = s.query(Question).get(q_id)
         if q is None:
-            raise QuestionNotFound(q_id)
+            abort(404)
         return q.as_dict()
 
 
@@ -41,15 +43,17 @@ def get_user_questions(user_id):
         return s.query(User).get(user_id).questions
 
 
-def create(user_id, question, desc):
-    question = Question(
-        user_id=user_id,
-        question=question,
-        desc=desc
-    )
+def create(user_id, data):
+    Schema({
+        'title': And(str, lambda s: 20 < len(s) <= 128),
+        'body': And(str, lambda s: 0 < len(s) <= 1024)
+    }).validate(data)
+
     with get_session() as s:
-        s.add(question)
-        return s.query(Question).order_by(Question.create_time.desc()).first().id
+        q = Question(user_id=user_id, title=data['title'], body=data['body'])
+        s.add(q)
+        s.commit()
+        return q.id  # return created question's id
 
 
 # todo: refactor this
@@ -57,24 +61,26 @@ def delete(q_id):
     with get_session() as s:
         q = s.query(Question).get(q_id)
         if q is None:
-            raise QuestionNotFound(q_id)
+            abort(404)
         for i in q.answers.all():
             s.delete(i)
         s.delete(q)
 
 
 def update(q_id, new_data):
+    Schema(And(lambda x: x != {}, {
+        Optional('id'): And(int, lambda n: n > 0)
+    })).validate(new_data)
+
     with get_session() as s:
         q = s.query(Question).get(q_id)
         if q is None:
-            raise QuestionNotFound(q_id)
+            abort(404)
 
         for attr, val in new_data.items():
-            if hasattr(q, attr):
-                setattr(q, attr, val)
+            setattr(q, attr, val)
 
-        # return current id
-        return new_data.get('id', q.id)
+        return q
 
 
 def get_question_answers(q_id):

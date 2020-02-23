@@ -10,7 +10,6 @@ import bcrypt
 
 from . import Base, get_session
 from .. import config
-from ..exceptions import QuestionNotFound
 
 
 User_status = ENUM('unconfirmed', 'active', 'deleted', 'banned',
@@ -56,8 +55,8 @@ class Question(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    question = Column(String(128), nullable=False)
-    desc = Column(String(1024), nullable=False)
+    title = Column(String(128), nullable=False)
+    body = Column(String(1024), nullable=False)
     create_time = Column(DateTime, default=datetime.utcnow, nullable=False)
     views = Column(Integer, default=0, nullable=False)
     # edit_time = Column(DateTime)
@@ -69,7 +68,7 @@ class Question(Base):
     votes = Column(Integer, default=0, nullable=False)
     voted_up = Column(Integer, ForeignKey('users.id'))
     voted_down = Column(Integer, ForeignKey('users.id'))
-    perms = Column(Question_permissions, default='all', nullable=False)  # приватность (все, только эксперты, только эксперты выбранных областей)
+    perms = Column(Question_permissions, default='all', nullable=False)
     archived = Column(Boolean, default=False, nullable=False)
 
     author = relationship('User',
@@ -110,6 +109,6 @@ class Answer(Base):
 
     def as_dict(self):
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        d['create_time'] = self.create_time.isoformat()
+        d['create_time'] = self.create_time.timestamp()
         d['mail'] = self.author.mail
         return d

@@ -14,7 +14,7 @@ HOST = os.getenv('HOST_ADDR', '0.0.0.0')
 PORT = int(os.getenv('PORT', '8080'))
 DB_CONNECTION_STRING = _get_db_connection_string()
 RUNTIME_FOLDER = os.path.dirname(os.path.abspath(__file__))
-SCPITS_FOLDER = os.getenv('SCRIPT_FOLDER', '{}/evproj/scripts'.format(RUNTIME_FOLDER))
+SCRIPTS_FOLDER = os.getenv('SCRIPT_FOLDER', '{}/evproj/scripts'.format(RUNTIME_FOLDER))
 
 DEFAULT_USER_STATUS = os.getenv('DEFAULT_USER_STATUS')
 SMTP_HOST = os.getenv('SMTP_HOST')
