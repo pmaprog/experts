@@ -7,7 +7,8 @@ from . import app, logger
 
 @app.errorhandler(HTTPException)
 def handle_http_exception(e):
-    logger.warning(f'{e.code} - [{e}]')  # i think it's not necessary
+    original_exc = getattr(e, 'original_exception', None)
+    logger.warning(str(e))  # i think it's not necessary
 
     response = e.get_response()
 
