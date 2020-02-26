@@ -2,7 +2,7 @@ from datetime import datetime
 from contextlib import suppress
 
 from .db import get_session
-from .db import User, Question, Answer, DQuestionVotes
+from .db import User, Post, Question, Article, Comment, DPostVotes
 from flask import abort
 
 from schema import Schema, And, Optional, Use
@@ -32,15 +32,17 @@ def get_many(offset=None, limit=None):
 
 def get(q_id):
     with get_session() as s:
-        q = s.query(Question).get(q_id)
-        if q is None:
-            abort(404, f'Question with id #{q_id} not found')
+        q = Question.get_or_404(s, q_id)
         return q.as_dict()
 
 
-def get_user_questions(u_id):
+def get_user_posts(u_id, type):
     with get_session() as s:
-        return s.query(User).get(u_id).questions
+        u = s.query(User).get(u_id)
+        if u is None:
+            abort(404)
+        posts = [p.as_dict() for p in getattr(u, type).order_by(Post.create_time.desc()).all()]
+        return posts
 
 
 def create(u_id, data):
@@ -56,15 +58,12 @@ def create(u_id, data):
         return q.id  # return created question's id
 
 
-# todo: refactor this
 def delete(q_id):
     with get_session() as s:
         q = s.query(Question).get(q_id)
         if q is None:
             abort(404)
-        for i in q.answers.all():
-            s.delete(i)
-        s.delete(q)
+        q.status = 'deleted'
 
 
 def update(q_id, new_data):
@@ -90,7 +89,7 @@ def increase_views(q_id):
         q = s.query(Question).get(q_id)
         if q is None:
             abort(404)
-        q.views += 1
+        q.views_count += 1
 
 
 def toggle_vote(u_id, q_id, action):
@@ -99,8 +98,8 @@ def toggle_vote(u_id, q_id, action):
         if q is None:
             abort(404)
 
-        cur_vote = s.query(DQuestionVotes).get((u_id, q_id))
-        new_vote = DQuestionVotes(u_id=u_id, q_id=q_id)
+        cur_vote = s.query(DPostVotes).get((u_id, q_id))
+        new_vote = DPostVotes(u_id=u_id, p_id=q_id)
         if action == 'up':
             if cur_vote:
                 if cur_vote.is_upvoted:
@@ -138,13 +137,13 @@ def get_question_answers(q_id):
         q = s.query(Question).get(q_id)
         if q is None:
             abort(404)
-        answers = [a.as_dict() for a in q.answers.all()]
+        answers = [a.as_dict() for a in q.comments.all()]
         return answers
 
 
 def create_answer(q_id, u_id, text):
     with get_session() as s:
-        answer = Answer(u_id=u_id, q_id=q_id, text=text)
+        answer = Comment(u_id=u_id, p_id=q_id, text=text)
         s.add(answer)
         s.commit()
         return answer.as_dict()
@@ -152,7 +151,7 @@ def create_answer(q_id, u_id, text):
 
 def get_answer(a_id):
     with get_session() as s:
-        answer = s.query(Answer).get(a_id)
+        answer = s.query(Comment).get(a_id)
         if answer is None:
             abort(404, f'Answer #{a_id} not found')
         return answer

@@ -5,7 +5,7 @@ from flask_login import (login_required, login_user, logout_user,
 import bcrypt
 
 from . import *
-from .. import auth, users_logic
+from .. import auth, users_logic, posts_logic
 
 
 bp = Blueprint('users', __name__)
@@ -17,7 +17,7 @@ def login():
         abort(409, 'User is currently authenticated')
 
     data = get_json()
-    user = auth.check_user(data['mail'])
+    user = auth.check_user(data['email'])
     if user:
         pw = str(data['password']).encode('utf-8')
         upw = str(user.password).encode('utf-8')
@@ -46,7 +46,7 @@ def register():
 
     pw = bcrypt.hashpw(str(args['password']).encode('utf-8'),
                        bcrypt.gensalt())
-    users_logic.register_user(args['mail'], args['name'],
+    users_logic.register_user(args['email'], args['name'],
                               args['surname'], pw.decode('utf-8'))
     return make_ok('User was registered')
 
@@ -56,3 +56,14 @@ def confirm():
     args = get_json()
     users_logic.confirm_user(args['link'])
     return make_ok('User was confirmed')
+
+
+# todo
+@bp.route('/user/<int:u_id>/posts')
+@bp.route('/user/<int:u_id>/questions')
+@bp.route('/user/<int:u_id>/articles')
+# @bp.route('/user/<int:u_id>/comments')
+def get_user_posts(u_id):
+    type = request.path[request.path.rfind('/') + 1:]
+    posts = posts_logic.get_user_posts(u_id, type)
+    return make_ok(posts=posts)

@@ -10,9 +10,9 @@ def user_loader(user_id):
         ).one_or_none()
 
 
-def check_user(mail):
+def check_user(email):
     with get_session() as s:
         return s.query(User).filter(
-                User.mail == mail,
+                User.email == email,
                 User.status == 'active'
         ).one_or_none()

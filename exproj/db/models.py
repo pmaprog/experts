@@ -15,25 +15,25 @@ from .. import config
 
 User_status = ENUM('unconfirmed', 'active', 'deleted', 'banned',
                    name='user_status')
-Question_permissions = ENUM('all', 'experts', 'some_experts', name='permissions')
+Question_access_levels = ENUM('all', 'experts', name='permissions')
 
 
-class DQuestionVotes(Base):
-    __tablename__ = 'd_question_votes'
+class DPostVotes(Base):
+    __tablename__ = 'd_post_votes'
 
     u_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
-    q_id = Column(Integer, ForeignKey('questions.id'), primary_key=True)
+    p_id = Column(Integer, ForeignKey('posts.id'), primary_key=True)
     is_upvoted = Column(Boolean, nullable=False)
 
-    user = relationship('User', backref='voted_questions')
-    question = relationship('Question', backref='voted_users')
+    user = relationship('User', backref='voted_posts')
+    post = relationship('Post', backref='voted_users')
 
 
 class User(Base, UserMixin):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True)
-    mail = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=False)
     name = Column(String, nullable=False)
     surname = Column(String, nullable=False)
     password = Column(String, nullable=False)
@@ -43,6 +43,11 @@ class User(Base, UserMixin):
     status = Column(User_status, default=config.DEFAULT_USER_STATUS, nullable=False)
     confirmation_link = Column(String, nullable=False)
     # warns
+
+    posts = relationship('Post', lazy='dynamic')
+    questions = relationship('Question', lazy='dynamic')
+    articles = relationship('Article', lazy='dynamic')
+    comments = relationship('Comment', lazy='dynamic')
 
     def get_id(self):
         return self.cookie_id
@@ -63,74 +68,82 @@ class User(Base, UserMixin):
         return self.name + ' ' + self.surname
 
 
-class Question(Base):
-    __tablename__ = 'questions'
+class Post(Base):
+    __tablename__ = 'posts'
+    not_found_error = 'post not found'
 
     id = Column(Integer, primary_key=True)
     u_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    type = Column(String(9), nullable=False)
     title = Column(String(128), nullable=False)
     body = Column(String(1024), nullable=False)
     create_time = Column(DateTime, default=datetime.utcnow, nullable=False)
     views_count = Column(Integer, default=0, nullable=False)
     rating = Column(Integer, default=0, nullable=False)
+    status = Column(String, default='ok', nullable=False)
     # edit_time = Column(DateTime)
     # domains
     # files
 
-    perms = Column(Question_permissions, default='all', nullable=False)
-    status = Column(String, default='ok', nullable=False)
+    # edited_by = relationship('User', foreign_keys='')
+    author = relationship('User', lazy='subquery')  # todo
+    comments = relationship('Comment', lazy='dynamic')
 
-    author = relationship('User',
-                          foreign_keys='Question.u_id',
-                          backref=backref('questions', lazy='dynamic'))
-    # edited_by = relationship('User',
-    #                          foreign_keys='')
-
-    @property
-    def answers_count(self):
-        with get_session() as s:
-            return s.query(Question).get(self.id).answers.count()
+    __mapper_args__ = {
+        'polymorphic_on': type,
+        'polymorphic_identity': 'posts'
+    }
 
     def as_dict(self):
         d = {
             'id': self.id,
             'u_id': self.u_id,
-            'mail': self.author.mail,
+            'email': self.author.email,
             'title': self.title,
             'body': self.body,
             'create_time': self.create_time.timestamp(),
             'views_count': self.views_count,
             'rating': self.rating,
-            'answers_count': self.answers_count,
+            'comments_count': 'todo',
             'tags': 'todo'
         }
         return d
 
 
-class Answer(Base):
-    __tablename__ = 'answers'
+class Question(Post):
+    not_found_error = 'question not found'
+    access = Column(Question_access_levels, default='all', nullable=False)
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'questions'
+    }
+
+
+class Article(Post):
+    __mapper_args__ = {
+        'polymorphic_identity': 'articles'
+    }
+
+
+class Comment(Base):
+    __tablename__ = 'comments'
 
     id = Column(Integer, primary_key=True)
     u_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    q_id = Column(Integer, ForeignKey('questions.id'), nullable=False)
+    p_id = Column(Integer, ForeignKey('posts.id'), nullable=False)
     create_time = Column(DateTime, default=datetime.utcnow(), nullable=False)
     text = Column(String, nullable=False)
-    votes = Column(Integer, default=0, nullable=False)
-    # edit_time
-    # edited_by
+    rating = Column(Integer, default=0, nullable=False)
     status = Column(String, default='ok', nullable=False)
+    # edit_time
     # visible
 
-    author = relationship('User',
-                          foreign_keys='Answer.u_id',
-                          backref=backref('answers', lazy='dynamic'))
-
-    question = relationship('Question',
-                            foreign_keys='Answer.q_id',
-                            backref=backref('answers', lazy='dynamic'))
+    # edited_by
+    author = relationship('User')  # foreign_keys='Comment.u_id'
+    post = relationship('Post')  # foreign_keys='Comment.p_id'
 
     def as_dict(self):
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
         d['create_time'] = self.create_time.timestamp()
-        d['mail'] = self.author.mail
+        d['email'] = self.author.email
         return d

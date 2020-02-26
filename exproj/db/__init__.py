@@ -9,6 +9,16 @@ _engine = create_engine(config.DB_CONNECTION_STRING)
 _Session = scoped_session(sessionmaker(bind=_engine, expire_on_commit=False))
 class _Base:
     query = _Session.query_property()
+    not_found_error = 'not found'
+
+    @classmethod
+    def get_or_404(cls, s, id):
+        o = s.query(cls).get(id)
+        if not o:
+            abort(404, cls.not_found_error)
+        return o
+
+
 Base = declarative_base(cls=_Base)
 
 
@@ -37,7 +47,7 @@ def create_tables(password):
     logger.info('Tables was created')
     with get_session() as s:
         root = User(
-            mail='root_mail',
+            email='root_mail',
             password=password,
             name='Name',
             surname='Surname',

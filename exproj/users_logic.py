@@ -12,10 +12,10 @@ from . import util
 from . import logger
 
 
-def register_user(mail, name, surname, password, lvl=2):
+def register_user(email, name, surname, password, lvl=2):
     with get_session() as s:
         user = s.query(User).filter(
-                User.mail == mail,
+                User.email == email,
                 User.status == 'deleted',
         ).one_or_none()
 
@@ -34,13 +34,13 @@ def register_user(mail, name, surname, password, lvl=2):
             user.confirmation_link = confirmation_link
             user.lvl = lvl
         else:
-            user = User(mail=mail, name=name,
+            user = User(email=email, name=name,
                         surname=surname, password=password,
                         lvl=lvl, confirmation_link=confirmation_link)
             s.add(user)
         if config.DEFAULT_USER_STATUS == 'unconfirmed':
-            util.send_email(mail, confirmation_link)
-        logger.info('Registering new user [{}]'.format(mail))
+            util.send_email(email, confirmation_link)
+        logger.info('Registering new user [{}]'.format(email))
 
 
 def confirm_user(confirmation_link):
@@ -51,7 +51,7 @@ def confirm_user(confirmation_link):
         ).one_or_none()
         if user:
             user.status = 'active'
-            logger.info('User [{}] is confirmed'.format(user.mail))
+            logger.info('User [{}] is confirmed'.format(user.email))
             return 'user confirmed'
         else:
             return 'user is currently confirmed by this link'
