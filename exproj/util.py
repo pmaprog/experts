@@ -3,8 +3,6 @@ import string
 import smtplib
 from email.message import EmailMessage
 
-from flask import abort
-
 from . import config
 
 

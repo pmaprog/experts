@@ -2,9 +2,10 @@ from dotenv import load_dotenv
 load_dotenv()
 import urllib3
 from argparse import ArgumentParser
+import bcrypt
+
 import exproj
 from exproj import db
-from passlib.hash import sha256_crypt
 
 
 def main():
@@ -18,7 +19,8 @@ def main():
     args = parser.parse_args()
 
     if args.password:
-        db.create_tables(sha256_crypt.encrypt(args.password))
+        pw = bcrypt.hashpw(str(args.password).encode('utf-8'), bcrypt.gensalt())
+        db.create_tables(pw.decode('utf-8'))
 
     if args.debug:
         exproj.run_debug()

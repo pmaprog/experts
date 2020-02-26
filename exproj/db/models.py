@@ -2,7 +2,7 @@ from flask import abort
 from flask_login import UserMixin
 from sqlalchemy import (Column, Integer, String, ForeignKey, Table,
                         DateTime, Boolean, UniqueConstraint)
-from sqlalchemy.dialects.postgresql import ENUM, UUID
+from sqlalchemy.dialects.postgresql import TEXT, ENUM, UUID
 from sqlalchemy.orm import relationship, backref
 
 from datetime import datetime
@@ -36,7 +36,7 @@ class User(Base, UserMixin):
     email = Column(String, unique=True, nullable=False)
     name = Column(String, nullable=False)
     surname = Column(String, nullable=False)
-    password = Column(String, nullable=False)
+    password = Column(TEXT, nullable=False)
     cookie_id = Column(UUID(as_uuid=True), default=uuid.uuid4,
                        unique=True, nullable=False)
     lvl = Column(Integer, default=2, nullable=False)
@@ -86,7 +86,7 @@ class Post(Base):
     # files
 
     # edited_by = relationship('User', foreign_keys='')
-    author = relationship('User', lazy='subquery')  # todo
+    author = relationship('User', lazy='subquery')
     comments = relationship('Comment', lazy='dynamic')
 
     __mapper_args__ = {

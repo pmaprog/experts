@@ -1,7 +1,5 @@
 from flask import jsonify, request, abort
 
-from .. import logger
-
 
 def make_ok(message=None, **attrs):
     body = dict(**attrs if attrs else {})

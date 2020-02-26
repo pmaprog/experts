@@ -1,13 +1,10 @@
 import sys
 import logging
 
-from werkzeug.exceptions import BadRequest
-from flask import Flask, Request
+from flask import Flask, Request, abort
 from flask_login import LoginManager
 from gevent.pywsgi import WSGIServer
 from gevent import monkey
-
-# from .exceptions import WrongJSON
 
 logger = logging.getLogger('exproj')
 formatter = logging.Formatter(
@@ -18,12 +15,12 @@ console_output_handler.setFormatter(formatter)
 logger.addHandler(console_output_handler)
 logger.setLevel(logging.INFO)
 
-def on_json_load_error(self, e):
-    raise BadRequest('Wrong json')
-Request.on_json_loading_failed = on_json_load_error
-
 from . import config, auth
 from .restful_api import users, questions
+
+def on_json_load_error(self, e):
+    abort(415, 'Wrong json')
+Request.on_json_loading_failed = on_json_load_error
 
 app = Flask(__name__)
 app.config.update(
