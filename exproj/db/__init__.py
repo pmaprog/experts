@@ -12,11 +12,11 @@ class _Base:
     not_found_error = 'not found'
 
     @classmethod
-    def get_or_404(cls, s, id):
-        o = s.query(cls).get(id)
-        if not o:
-            abort(404, cls.not_found_error)
-        return o
+    def get_or_404(cls, s, id_):
+        p = s.query(cls).get(id_)
+        if not p:
+            abort(404, f'{cls.name} with #{id_} not found')
+        return p
 
 
 Base = declarative_base(cls=_Base)

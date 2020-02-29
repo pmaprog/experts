@@ -4,6 +4,15 @@ import smtplib
 from email.message import EmailMessage
 
 from . import config
+from .db import *
+
+
+def get_post_class(path):
+    if 'question' in path:
+        return Question
+    if 'article' in path:
+        return Article
+    raise ValueError('Can\'t determine class')
 
 
 def random_string_digits(str_len=8):

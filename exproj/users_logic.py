@@ -69,3 +69,12 @@ def update_profile(id, args):
                 setattr(user, arg, val)
             else:
                 raise KeyError(arg)
+
+
+def posts(u_id, type):
+    with get_session() as s:
+        u = s.query(User).get(u_id)
+        if u is None:
+            abort(404)
+        posts = [p.as_dict() for p in getattr(u, type).order_by(Post.create_time.desc()).all()]
+        return posts

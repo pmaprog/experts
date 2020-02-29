@@ -8,9 +8,9 @@ from flask import abort
 from schema import Schema, And, Optional, Use
 
 
-def get_many(offset=None, limit=None):
+def get_many(PostClass, offset=None, limit=None):
     with get_session() as s:
-        query = s.query(Question).order_by(Question.create_time.desc())
+        query = s.query(PostClass).order_by(PostClass.create_time.desc())
 
         if offset and limit:
             try:
@@ -26,47 +26,36 @@ def get_many(offset=None, limit=None):
         else:
             data = query.all()
 
-        questions = [q.as_dict() for q in data]
-        return questions
-
-
-def get(q_id):
-    with get_session() as s:
-        q = Question.get_or_404(s, q_id)
-        return q.as_dict()
-
-
-def get_user_posts(u_id, type):
-    with get_session() as s:
-        u = s.query(User).get(u_id)
-        if u is None:
-            abort(404)
-        posts = [p.as_dict() for p in getattr(u, type).order_by(Post.create_time.desc()).all()]
+        posts = [p.as_dict() for p in data]
         return posts
 
 
-def create(u_id, data):
+def get(PostClass, p_id):
+    with get_session() as s:
+        p = PostClass.get_or_404(s, p_id)
+        return p.as_dict()
+
+
+def create(PostClass, u_id, data):
     Schema({
         'title': And(str, And(lambda s: 20 < len(s) <= 128, error='from 20 to 128')),
         'body': And(str, lambda s: 0 < len(s) <= 1024)
     }).validate(data)
 
     with get_session() as s:
-        q = Question(u_id=u_id, title=data['title'], body=data['body'])
-        s.add(q)
+        p = PostClass(u_id=u_id, title=data['title'], body=data['body'])
+        s.add(p)
         s.commit()
-        return q.id  # return created question's id
+        return p.id  # return created question's id
 
 
-def delete(q_id):
+def delete(PostClass, p_id):
     with get_session() as s:
-        q = s.query(Question).get(q_id)
-        if q is None:
-            abort(404)
-        q.status = 'deleted'
+        p = PostClass.get_or_404(s, p_id)
+        p.status = 'deleted'
 
 
-def update(q_id, new_data):
+def update(PostClass, p_id, new_data):
     Schema(And(lambda x: x != {}, {
         Optional('id'): And(int, lambda n: n > 0),
         Optional('title'): And(str, lambda s: 20 < len(s) <= 128),
@@ -74,43 +63,38 @@ def update(q_id, new_data):
     })).validate(new_data)
 
     with get_session() as s:
-        q = s.query(Question).get(q_id)
-        if q is None:
-            abort(404)
+        p = PostClass.get_or_404(s, p_id)
 
         for attr, val in new_data.items():
-            setattr(q, attr, val)
+            setattr(p, attr, val)
 
-        return q.as_dict()
+        return p.as_dict()
 
 
-def increase_views(q_id):
+# todo
+def increase_views(PostClass, p_id):
     with get_session() as s:
-        q = s.query(Question).get(q_id)
-        if q is None:
-            abort(404)
-        q.views_count += 1
+        p = PostClass.get_or_404(s, p_id)
+        p.views_count += 1
 
 
-def toggle_vote(u_id, q_id, action):
+def toggle_vote(PostClass, u_id, p_id, action):
     with get_session() as s:
-        q = s.query(Question).get(q_id)
-        if q is None:
-            abort(404)
+        p = PostClass.get_or_404(s, p_id)
 
-        cur_vote = s.query(DPostVotes).get((u_id, q_id))
-        new_vote = DPostVotes(u_id=u_id, p_id=q_id)
+        cur_vote = s.query(DPostVotes).get((u_id, p_id))
+        new_vote = DPostVotes(u_id=u_id, p_id=p_id)
         if action == 'up':
             if cur_vote:
                 if cur_vote.is_upvoted:
                     s.delete(cur_vote)
-                    q.rating -= 1
+                    p.rating -= 1
                     return 'deleted'
                 else:
-                    q.rating += 2
+                    p.rating += 2
                     cur_vote.is_upvoted = True
             else:
-                q.rating += 1
+                p.rating += 1
                 new_vote.is_upvoted = True
                 s.add(new_vote)
             return 'up'
@@ -118,13 +102,13 @@ def toggle_vote(u_id, q_id, action):
             if cur_vote:
                 if not cur_vote.is_upvoted:
                     s.delete(cur_vote)
-                    q.rating += 1
+                    p.rating += 1
                     return 'deleted'
                 else:
-                    q.rating -= 2
+                    p.rating -= 2
                     cur_vote.is_upvoted = False
             else:
-                q.rating -= 1
+                p.rating -= 1
                 new_vote.is_upvoted = False
                 s.add(new_vote)
             return 'down'
@@ -132,26 +116,23 @@ def toggle_vote(u_id, q_id, action):
             raise ValueError('Action should be only `up` or `down`')
 
 
-def get_question_answers(q_id):
+def get_post_comments(PostClass, p_id):
     with get_session() as s:
-        q = s.query(Question).get(q_id)
-        if q is None:
-            abort(404)
-        answers = [a.as_dict() for a in q.comments.all()]
-        return answers
+        p = PostClass.get_or_404(s, p_id)
+        comments = [c.as_dict() for c in p.comments.all()]
+        return comments
 
 
-def create_answer(q_id, u_id, text):
+def create_comment(PostClass, u_id, p_id, text):
     with get_session() as s:
-        answer = Comment(u_id=u_id, p_id=q_id, text=text)
-        s.add(answer)
+        p = PostClass.get_or_404(s, p_id)
+        comment = Comment(u_id=u_id, p_id=p_id, text=text)
+        p.comments.append(comment)
         s.commit()
-        return answer.as_dict()
+        return comment.as_dict()
 
 
-def get_answer(a_id):
+def get_comment(c_id):
     with get_session() as s:
-        answer = s.query(Comment).get(a_id)
-        if answer is None:
-            abort(404, f'Answer #{a_id} not found')
-        return answer
+        comment = Comment.get_or_404(s, c_id)
+        return comment

@@ -70,7 +70,7 @@ class User(Base, UserMixin):
 
 class Post(Base):
     __tablename__ = 'posts'
-    not_found_error = 'post not found'
+    name = 'Post'
 
     id = Column(Integer, primary_key=True)
     u_id = Column(Integer, ForeignKey('users.id'), nullable=False)
@@ -111,8 +111,8 @@ class Post(Base):
 
 
 class Question(Post):
-    not_found_error = 'question not found'
-    access = Column(Question_access_levels, default='all', nullable=False)
+    name = 'Question'
+    access = Column(Question_access_levels, default='all')
 
     __mapper_args__ = {
         'polymorphic_identity': 'questions'
@@ -120,6 +120,7 @@ class Question(Post):
 
 
 class Article(Post):
+    name = 'Article'
     __mapper_args__ = {
         'polymorphic_identity': 'articles'
     }
