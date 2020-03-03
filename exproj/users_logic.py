@@ -71,10 +71,8 @@ def update_profile(id, args):
                 raise KeyError(arg)
 
 
-def posts(u_id, type):
+def get_posts(PostClass, u_id):
     with get_session() as s:
-        u = s.query(User).get(u_id)
-        if u is None:
-            abort(404)
-        posts = [p.as_dict() for p in getattr(u, type).order_by(Post.create_time.desc()).all()]
+        u = User.get_or_404(s, u_id)
+        posts = [p.as_dict() for p in s.query(PostClass).order_by(PostClass.creation_date.desc()).all()]
         return posts

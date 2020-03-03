@@ -1,11 +1,14 @@
 from flask import jsonify, request, abort
 
 
-def make_ok(message=None, **attrs):
+def make_ok(description=None, **attrs):
     body = dict(**attrs if attrs else {})
 
-    if message:
-        body['message'] = message
+    if description:
+        if not isinstance(description, str) and not attrs:
+            body = description
+        else:
+            body['description'] = description
 
     return jsonify(body)
 

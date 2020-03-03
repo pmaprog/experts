@@ -9,13 +9,13 @@ _engine = create_engine(config.DB_CONNECTION_STRING)
 _Session = scoped_session(sessionmaker(bind=_engine, expire_on_commit=False))
 class _Base:
     query = _Session.query_property()
-    not_found_error = 'not found'
 
     @classmethod
     def get_or_404(cls, s, id_):
+        # todo: check for deleted post, for active user
         p = s.query(cls).get(id_)
         if not p:
-            abort(404, f'{cls.name} with #{id_} not found')
+            abort(404, f'{cls.__name__} with id #{id_} not found')
         return p
 
 

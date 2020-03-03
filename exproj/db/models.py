@@ -70,16 +70,16 @@ class User(Base, UserMixin):
 
 class Post(Base):
     __tablename__ = 'posts'
-    name = 'Post'
 
     id = Column(Integer, primary_key=True)
     u_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     type = Column(String(9), nullable=False)
     title = Column(String(128), nullable=False)
     body = Column(String(1024), nullable=False)
-    create_time = Column(DateTime, default=datetime.utcnow, nullable=False)
-    views_count = Column(Integer, default=0, nullable=False)
-    rating = Column(Integer, default=0, nullable=False)
+    creation_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    view_count = Column(Integer, default=0, nullable=False)
+    comment_count = Column(Integer, default=0, nullable=False)
+    score = Column(Integer, default=0, nullable=False)
     status = Column(String, default='ok', nullable=False)
     # edit_time = Column(DateTime)
     # domains
@@ -95,23 +95,21 @@ class Post(Base):
     }
 
     def as_dict(self):
-        d = {
+        return {
             'id': self.id,
             'u_id': self.u_id,
             'email': self.author.email,
             'title': self.title,
             'body': self.body,
-            'create_time': self.create_time.timestamp(),
-            'views_count': self.views_count,
-            'rating': self.rating,
-            'comments_count': 'todo',
+            'creation_date': self.creation_date.timestamp(),
+            'view_count': self.view_count,
+            'score': self.score,
+            'comment_count': self.comment_count,
             'tags': 'todo'
         }
-        return d
 
 
 class Question(Post):
-    name = 'Question'
     access = Column(Question_access_levels, default='all')
 
     __mapper_args__ = {
@@ -120,7 +118,6 @@ class Question(Post):
 
 
 class Article(Post):
-    name = 'Article'
     __mapper_args__ = {
         'polymorphic_identity': 'articles'
     }
@@ -132,10 +129,11 @@ class Comment(Base):
     id = Column(Integer, primary_key=True)
     u_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     p_id = Column(Integer, ForeignKey('posts.id'), nullable=False)
-    create_time = Column(DateTime, default=datetime.utcnow(), nullable=False)
+    creation_date = Column(DateTime, default=datetime.utcnow(), nullable=False)
     text = Column(String, nullable=False)
-    rating = Column(Integer, default=0, nullable=False)
+    score = Column(Integer, default=0, nullable=False)
     status = Column(String, default='ok', nullable=False)
+    # is_answer
     # edit_time
     # visible
 
@@ -145,6 +143,6 @@ class Comment(Base):
 
     def as_dict(self):
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        d['create_time'] = self.create_time.timestamp()
+        d['creation_date'] = self.creation_date.timestamp()
         d['email'] = self.author.email
         return d

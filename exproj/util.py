@@ -12,6 +12,8 @@ def get_post_class(path):
         return Question
     if 'article' in path:
         return Article
+    if 'comment' in path:
+        return Comment
     raise ValueError('Can\'t determine class')
 
 

@@ -10,7 +10,7 @@ from schema import Schema, And, Optional, Use
 
 def get_many(PostClass, offset=None, limit=None):
     with get_session() as s:
-        query = s.query(PostClass).order_by(PostClass.create_time.desc())
+        query = s.query(PostClass).order_by(PostClass.creation_date.desc())
 
         if offset and limit:
             try:
@@ -75,7 +75,7 @@ def update(PostClass, p_id, new_data):
 def increase_views(PostClass, p_id):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
-        p.views_count += 1
+        p.view_count += 1
 
 
 def toggle_vote(PostClass, u_id, p_id, action):
@@ -128,6 +128,7 @@ def create_comment(PostClass, u_id, p_id, text):
         p = PostClass.get_or_404(s, p_id)
         comment = Comment(u_id=u_id, p_id=p_id, text=text)
         p.comments.append(comment)
+        p.comment_count += 1
         s.commit()
         return comment.as_dict()
 

@@ -6,6 +6,7 @@ import bcrypt
 
 from . import *
 from .. import auth, users_logic, posts_logic
+from ..util import get_post_class
 
 
 bp = Blueprint('users', __name__)
@@ -59,11 +60,10 @@ def confirm():
 
 
 # todo
-@bp.route('/user/<int:u_id>/posts')
 @bp.route('/user/<int:u_id>/questions')
 @bp.route('/user/<int:u_id>/articles')
-# @bp.route('/user/<int:u_id>/comments')
+@bp.route('/user/<int:u_id>/comments')
 def get_user_posts(u_id):
-    type = request.path[request.path.rfind('/') + 1:]
-    posts = posts_logic.get_user_posts(u_id, type)
-    return make_ok(posts=posts)
+    PostClass = get_post_class(request.path)
+    posts = users_logic.get_posts(PostClass, u_id)
+    return make_ok(posts)

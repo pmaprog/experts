@@ -16,9 +16,8 @@ def get_posts():
     offset = args.get('offset')
     limit = args.get('limit')
     PostClass = get_post_class(request.path)
-    post_type = request.path[1:]
     posts = posts_logic.get_many(PostClass, offset, limit)
-    return make_ok(**{post_type: posts})
+    return jsonify(posts)
 
 
 @bp.route('/question', methods=['POST'])
@@ -54,8 +53,8 @@ def delete_post(p_id):
 def update_post(p_id):
     PostClass = get_post_class(request.path)
     data = get_json()
-    updated_question = posts_logic.update(p_id, data)
-    return make_ok(f'{PostClass.name} #{p_id} has been updated', question=updated_question)
+    posts_logic.update(p_id, data)
+    return make_ok(f'{PostClass.name} #{p_id} has been updated')
 
 
 # todo
@@ -88,7 +87,7 @@ def vote_post(p_id):
 def get_post_comments(p_id):
     PostClass = get_post_class(request.path)
     comments = posts_logic.get_post_comments(PostClass, p_id)
-    return make_ok(comments=comments)
+    return make_ok(comments)
 
 
 @bp.route('/question/<int:p_id>/comment', methods=['POST'])
@@ -97,5 +96,5 @@ def create_comment(p_id):
     PostClass = get_post_class(request.path)
     data = get_json()
     text = data['text']
-    comment = posts_logic.create_comment(PostClass, current_user.id, p_id, text)
-    return make_ok(f'Comment for the {PostClass.name.lower()} #{p_id} has been created', comment=comment), 201
+    posts_logic.create_comment(PostClass, current_user.id, p_id, text)
+    return make_ok(f'Comment for the {PostClass.name.lower()} #{p_id} has been created'), 201
