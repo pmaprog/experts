@@ -163,6 +163,7 @@ class Comment(Base):
     def as_dict(self):
         return {
             'id': self.id,
+            'p_id': self.p_id,
             'u_id': self.u_id,
             'email': self.author.email,
             'text': self.text,

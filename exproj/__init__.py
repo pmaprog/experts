@@ -3,6 +3,7 @@ import logging
 
 from flask import Flask, Request, abort
 from flask_login import LoginManager
+from flask_cors import CORS
 from gevent.pywsgi import WSGIServer
 from gevent import monkey
 
@@ -15,8 +16,9 @@ console_output_handler.setFormatter(formatter)
 logger.addHandler(console_output_handler)
 logger.setLevel(logging.INFO)
 
-from . import config, auth
-from .restful_api import users, posts, comments
+from . import config
+from .accounts_logic import user_loader
+from .restful_api import accounts, users, posts, comments
 
 def on_json_load_error(self, e):
     abort(415, 'Wrong json')
@@ -29,13 +31,16 @@ app.config.update(
     JSON_SORT_KEYS=False
 )
 
+CORS(app)
+
+app.register_blueprint(accounts.bp)
 app.register_blueprint(users.bp)
 app.register_blueprint(posts.bp)
 app.register_blueprint(comments.bp)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.user_loader(auth.user_loader)
+login_manager.user_loader(user_loader)
 
 from . import errors
 
