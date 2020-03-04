@@ -16,7 +16,7 @@ logger.addHandler(console_output_handler)
 logger.setLevel(logging.INFO)
 
 from . import config, auth
-from .restful_api import users, questions
+from .restful_api import users, posts, comments
 
 def on_json_load_error(self, e):
     abort(415, 'Wrong json')
@@ -30,7 +30,8 @@ app.config.update(
 )
 
 app.register_blueprint(users.bp)
-app.register_blueprint(questions.bp)
+app.register_blueprint(posts.bp)
+app.register_blueprint(comments.bp)
 
 login_manager = LoginManager()
 login_manager.init_app(app)

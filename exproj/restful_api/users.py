@@ -26,9 +26,9 @@ def login():
             login_user(user)
             return make_ok('User was logged in')
         else:
-            abort(400, 'Invalid login or password')
+            abort(400, 'Invalid password')
     else:
-        abort(400, 'Invalid login or password')
+        abort(400, 'Invalid login')
 
 
 @bp.route('/logout', methods=['GET', 'POST'])
@@ -47,8 +47,8 @@ def register():
 
     pw = bcrypt.hashpw(str(args['password']).encode('utf-8'),
                        bcrypt.gensalt())
-    users_logic.register_user(args['email'], args['name'],
-                              args['surname'], pw.decode('utf-8'))
+    users_logic.register_user(args['email'], args['name'], args['surname'],
+                              pw.decode('utf-8'), args['position'])
     return make_ok('User was registered')
 
 

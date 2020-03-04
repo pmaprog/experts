@@ -5,18 +5,19 @@ from contextlib import contextmanager
 
 from .. import config, logger
 
-_engine = create_engine(config.DB_CONNECTION_STRING)
-_Session = scoped_session(sessionmaker(bind=_engine, expire_on_commit=False))
-class _Base:
-    query = _Session.query_property()
+from flask_sqlalchemy import SQLAlchemy
 
+_engine = create_engine(config.DB_CONNECTION_STRING)
+_Session = sessionmaker(bind=_engine, expire_on_commit=False)
+
+
+class _Base:
     @classmethod
     def get_or_404(cls, s, id_):
-        # todo: check for deleted post, for active user
-        p = s.query(cls).get(id_)
-        if not p:
-            abort(404, f'{cls.__name__} with id #{id_} not found')
-        return p
+        obj = s.query(cls).get(id_)
+        if obj and (obj.account_status if cls.__name__ == 'User' else obj.status) != 'deleted':  # todo: may be change `account_status` to `status`?
+            return obj
+        abort(404, f'{cls.__name__} with id #{id_} not found')
 
 
 Base = declarative_base(cls=_Base)
@@ -51,9 +52,10 @@ def create_tables(password):
             password=password,
             name='Name',
             surname='Surname',
-            lvl=0,
-            status='active',
+            account_status='active',
             confirmation_link='none',
+            position='Admin',
+            access=5
         )
         s.add(root)
     logger.info('Default user with mail [root_mail] was created')

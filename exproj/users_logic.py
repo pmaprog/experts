@@ -12,15 +12,14 @@ from . import util
 from . import logger
 
 
-def register_user(email, name, surname, password, lvl=2):
+def register_user(email, name, surname, password, position):
     with get_session() as s:
         user = s.query(User).filter(
                 User.email == email,
-                User.status == 'deleted',
+                User.account_status == 'deleted',
         ).one_or_none()
 
         # checking unique link
-        confirmation_link = ''
         while True:
             confirmation_link = nanoid.generate(size=50)
             exists = s.query(User).filter(
@@ -32,14 +31,16 @@ def register_user(email, name, surname, password, lvl=2):
         if user:
             user.status = config.DEFAULT_USER_STATUS
             user.confirmation_link = confirmation_link
-            user.lvl = lvl
         else:
-            user = User(email=email, name=name,
-                        surname=surname, password=password,
-                        lvl=lvl, confirmation_link=confirmation_link)
+            # todo: fix duplicate error
+            user = User(email=email, name=name, surname=surname,
+                        password=password, position=position,
+                        confirmation_link=confirmation_link)
             s.add(user)
+
         if config.DEFAULT_USER_STATUS == 'unconfirmed':
             util.send_email(email, confirmation_link)
+
         logger.info('Registering new user [{}]'.format(email))
 
 
@@ -47,7 +48,7 @@ def confirm_user(confirmation_link):
     with get_session() as s:
         user = s.query(User).filter(
                 User.confirmation_link == confirmation_link,
-                User.status == 'unconfirmed',
+                User.account_status == 'unconfirmed',
         ).one_or_none()
         if user:
             user.status = 'active'
@@ -57,11 +58,12 @@ def confirm_user(confirmation_link):
             return 'user is currently confirmed by this link'
 
 
+# todo
 def update_profile(id, args):
     with get_session() as s:
         user = s.query(User).filter(
             User.id == id,
-            User.status == 'active',
+            User.account_status == 'active',
             ).one_or_none()
 
         for arg, val in args.items():
@@ -73,6 +75,8 @@ def update_profile(id, args):
 
 def get_posts(PostClass, u_id):
     with get_session() as s:
-        u = User.get_or_404(s, u_id)
-        posts = [p.as_dict() for p in s.query(PostClass).order_by(PostClass.creation_date.desc()).all()]
+        User.get_or_404(s, u_id)
+        posts = [p.as_dict() for p in s.query(PostClass)
+            .filter(PostClass.u_id == u_id)
+            .order_by(PostClass.creation_date.desc()).all()]
         return posts
