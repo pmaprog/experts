@@ -10,7 +10,7 @@ from .db import User, Post, Question, Article, Comment, DPostVotes, DCommentVote
 
 def get_many(PostClass, offset=None, limit=None):
     with get_session() as s:
-        query = s.query(PostClass).filter(PostClass.status == 'ok').order_by(PostClass.creation_date.desc())
+        query = s.query(PostClass).filter(PostClass.status == 'active').order_by(PostClass.creation_date.desc())
 
         # todo
         # is it necessary? get only those questions that the user has access to
@@ -41,6 +41,7 @@ def get(PostClass, p_id):
         return p.as_dict()
 
 
+# todo: article does not have `access` column
 def create(PostClass, data):
     u_id = current_user.id
 
@@ -51,9 +52,11 @@ def create(PostClass, data):
     }).validate(data)
 
     with get_session() as s:
+        s.add(current_user)
         p = PostClass(u_id=u_id, title=data['title'], body=data['body'], access=USER_ACCESS[data['access']])
         s.add(p)
         s.commit()
+        # current_user.increment_count(PostClass)
         if PostClass == Question:
             current_user.question_count += 1
         if PostClass == Article:
@@ -63,6 +66,7 @@ def create(PostClass, data):
 
 def delete(PostClass, p_id):
     with get_session() as s:
+        s.add(current_user)
         p = PostClass.get_or_404(s, p_id)
         if current_user.access < USER_ACCESS['moderator'] and p.u_id != current_user.id:
             abort(403)
@@ -117,30 +121,30 @@ def toggle_vote(PostClass, p_id, action):
 
         if action == 'up':
             if cur_vote:
-                if cur_vote.is_upvoted:
+                if cur_vote.upvoted:
                     s.delete(cur_vote)
                     p.score -= 1
                     return 'deleted'
                 else:
                     p.score += 2
-                    cur_vote.is_upvoted = True
+                    cur_vote.upvoted = True
             else:
                 p.score += 1
-                new_vote.is_upvoted = True
+                new_vote.upvoted = True
                 s.add(new_vote)
             return 'up'
         elif action == 'down':
             if cur_vote:
-                if not cur_vote.is_upvoted:
+                if not cur_vote.upvoted:
                     s.delete(cur_vote)
                     p.score += 1
                     return 'deleted'
                 else:
                     p.score -= 2
-                    cur_vote.is_upvoted = False
+                    cur_vote.upvoted = False
             else:
                 p.score -= 1
-                new_vote.is_upvoted = False
+                new_vote.upvoted = False
                 s.add(new_vote)
             return 'down'
         else:
@@ -158,6 +162,7 @@ def create_comment(PostClass, p_id, text):
     u_id = current_user.id
 
     with get_session() as s:
+        s.add(current_user)
         p = PostClass.get_or_404(s, p_id)
 
         if PostClass == Question and not current_user.has_access(p):

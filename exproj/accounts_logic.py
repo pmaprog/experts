@@ -3,15 +3,16 @@ import bcrypt
 import nanoid
 import uuid
 
-from .db import *
+from flask import abort
+from .db import get_session, User
 from . import config, util
 
 
-def user_loader(uc_id):
+def user_loader(cookie_id):
     with get_session() as s:
         return s.query(User).filter(
-            User.cookie_id == uc_id,
-            User.account_status == 'active'
+            User.cookie_id == cookie_id,
+            User.status == 'active'
         ).one_or_none()
 
 
@@ -21,9 +22,9 @@ def pre_login(email, password):
             User.email == email
         ).one_or_none()
 
-        if not user or user.account_status == 'deleted':
+        if not user or user.status == 'deleted':
             abort(404, 'User not found')
-        if user.account_status == 'banned':
+        if user.status == 'banned':
             abort(409, 'Trying to login banned user!')
 
         pw = str(password).encode('utf-8')
@@ -48,7 +49,8 @@ def register_user(email, name, surname, password, position):
             if not exists:
                 break
 
-        pw = bcrypt.hashpw(str(password).encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        pw = bcrypt.hashpw(str(password).encode('utf-8'),
+                           bcrypt.gensalt()).decode('utf-8')
 
         if user:
             if user.account_status == 'deleted':
@@ -77,13 +79,14 @@ def confirm_user(confirmation_link):
             User.confirmation_link == confirmation_link
         ).one_or_none()
         if user:
-            if user.account_status == 'unconfirmed':
-                user.account_status = 'active'
+            if user.status == 'unconfirmed':
+                user.status = 'active'
                 logging.info('User [{}] is confirmed'.format(user.email))
             else:
-                abort(409, 'User is currently confirmed by this link or can\'t be confirmed')
-        else:
-            abort(404, 'No user with this confirmation link')
+                abort(409, 'User is currently confirmed by'
+                           'this link or can\'t be confirmed')
+
+        abort(404, 'No user with this confirmation link')
 
 
 def change_password(u_id, old_password, new_password):
@@ -109,7 +112,7 @@ def reset_password(email):
     with get_session() as s:
         user = s.query(User).filter(
             User.email == email,
-            User.account_status == 'active'
+            User.status == 'active'
         ).one_or_none()
 
         if not user:
@@ -145,32 +148,23 @@ def self_delete(u_id, password):
         if not bcrypt.checkpw(opw, pw):
             abort(422, 'Invalid password')
         user.account_status = 'deleted'
-        user.cookie_id = uuid.uuid4()
-        user.phone = None
-        user.organization = None
-        user.position = None
-        user.country = None
-        user.bio = None
 
 
 def ban_user(u_id):
     with get_session() as s:
         user = s.query(User).filter(
             User.id == u_id,
-            User.service_status != 'superadmin'
         ).one_or_none()
 
         if not user:
-            abort(422, 'No user with this id')
-        user.account_status = 'banned'
+            abort(404, 'No user with this id')
+        user.status = 'banned'
 
 
 def change_privileges(u_id, role):
     with get_session() as s:
         user = s.query(User).filter(
             User.id == u_id,
-            User.account_status == 'active',
-            User.service_status != 'superadmin'
         ).one_or_none()
 
         if not user:
@@ -178,5 +172,3 @@ def change_privileges(u_id, role):
 
         if user.service_status == role:
             abort(409, 'User already has that role')
-
-        user.service_status = role

@@ -1,4 +1,3 @@
-from flask import abort
 from flask_login import current_user, UserMixin
 from sqlalchemy import (Column, Integer, String, ForeignKey, Table,
                         DateTime, Boolean, UniqueConstraint)
@@ -21,8 +20,7 @@ USER_ACCESS = {
 }
 
 Account_status = ENUM('unconfirmed', 'active', 'deleted', 'banned', name='account_status')
-Post_status = ENUM('ok', 'deleted', name='post_status')
-# Question_access = ENUM('all', 'experts', name='question_access')
+Post_status = ENUM('active', 'deleted', name='post_status')
 
 
 class DPostVotes(Base):
@@ -30,7 +28,7 @@ class DPostVotes(Base):
 
     u_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
     p_id = Column(Integer, ForeignKey('posts.id'), primary_key=True)
-    is_upvoted = Column(Boolean, nullable=False)
+    upvoted = Column(Boolean, nullable=False)
 
 
 class DCommentVotes(Base):
@@ -38,15 +36,17 @@ class DCommentVotes(Base):
 
     u_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
     c_id = Column(Integer, ForeignKey('comments.id'), primary_key=True)
-    is_upvoted = Column(Boolean, nullable=False)
+    upvoted = Column(Boolean, nullable=False)
 
 
 class User(Base, UserMixin):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True)
-    cookie_id = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
-    account_status = Column(Account_status, default=config.DEFAULT_USER_STATUS, nullable=False)
+    cookie_id = Column(UUID(as_uuid=True), default=uuid.uuid4,
+                       unique=True, nullable=False)
+    status = Column(Account_status, default=config.DEFAULT_USER_STATUS,
+                    nullable=False)
     name = Column(String, nullable=False)
     surname = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
@@ -76,6 +76,14 @@ class User(Base, UserMixin):
     def has_access(self, post):
         return post.u_id == current_user.id or self.access >= post.access
 
+    # def increment_count(self, cls):
+    #     if cls == Question:
+    #         self.question_count += 1
+    #     if cls == Article:
+    #         self.article_count += 1
+    #     if cls == Comment:
+    #         self.comment_count += 1
+
 
 class Post(Base):
     __tablename__ = 'posts'
@@ -89,7 +97,7 @@ class Post(Base):
     view_count = Column(Integer, default=0, nullable=False)
     comment_count = Column(Integer, default=0, nullable=False)
     score = Column(Integer, default=0, nullable=False)
-    status = Column(Post_status, default='ok', nullable=False)
+    status = Column(Post_status, default='active', nullable=False)
     # edit_time = Column(DateTime)
     # domains
     # files
@@ -121,6 +129,7 @@ class Post(Base):
 
 class Question(Post):
     access = Column(Integer, default=USER_ACCESS['guest'], nullable=False)
+    # closed
 
     # def __init__(self, *args, **kwargs):
     #     super(Question, self).__init__(*args, **kwargs)
@@ -150,8 +159,7 @@ class Comment(Base):
     creation_date = Column(DateTime, default=datetime.utcnow, nullable=False)
     text = Column(String, nullable=False)
     score = Column(Integer, default=0, nullable=False)
-    status = Column(String, default='ok', nullable=False)
-    # is_answer
+    status = Column(String, default='active', nullable=False)
     # edit_time
     # visible
 

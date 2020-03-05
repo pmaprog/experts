@@ -21,7 +21,8 @@ def update(c_id):
 def delete(c_id):
     with get_session() as s:
         c = Comment.get_or_404(s, c_id)
-        if current_user.access < USER_ACCESS['moderator'] and c.u_id != current_user.id:
+        if (current_user.access < USER_ACCESS['moderator'] and
+                c.u_id != current_user.id):
             abort(403)
         c.status = 'deleted'
         c.post.comment_count -= 1

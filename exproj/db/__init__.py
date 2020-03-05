@@ -5,7 +5,7 @@ from contextlib import contextmanager
 
 from .. import config, logger
 
-from flask_sqlalchemy import SQLAlchemy
+from flask import abort
 
 _engine = create_engine(config.DB_CONNECTION_STRING)
 _Session = sessionmaker(bind=_engine, expire_on_commit=False)
@@ -15,7 +15,7 @@ class _Base:
     @classmethod
     def get_or_404(cls, s, id_):
         obj = s.query(cls).get(id_)
-        if obj and (obj.account_status if cls.__name__ == 'User' else obj.status) != 'deleted':  # todo: may be change `account_status` to `status`?
+        if obj and obj.status == 'active':
             return obj
         abort(404, f'{cls.__name__} with id #{id_} not found')
 
@@ -36,6 +36,9 @@ def get_session():
         session.close()
 
 
+from .models import *
+
+
 def create_tables(password):
     logger.info('Dropping existing tables')
     try:
@@ -52,13 +55,10 @@ def create_tables(password):
             password=password,
             name='Name',
             surname='Surname',
-            account_status='active',
+            status='active',
             confirmation_link='none',
             position='Admin',
-            access=5
+            access=USER_ACCESS['superadmin']
         )
         s.add(root)
     logger.info('Default user with mail [root_mail] was created')
-
-
-from .models import *

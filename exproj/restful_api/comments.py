@@ -1,9 +1,6 @@
-from flask import jsonify, request, redirect, url_for, Blueprint
-from flask_login import current_user, login_required
-from flask_sqlalchemy import SQLAlchemy
+from flask import Blueprint
 
 from . import *
-from ..util import get_post_class
 from .. import posts_logic, comments_logic
 
 bp = Blueprint('comments', __name__, url_prefix='/comment')
@@ -12,7 +9,7 @@ bp = Blueprint('comments', __name__, url_prefix='/comment')
 @bp.route('/<int:c_id>')
 def get(c_id):
     comment = comments_logic.get(c_id)
-    return make_ok(comment)
+    return jsonify(comment=comment)
 
 
 @bp.route('/<int:c_id>', methods=['PUT'])

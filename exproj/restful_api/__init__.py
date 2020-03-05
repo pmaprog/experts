@@ -1,16 +1,10 @@
 from flask import jsonify, request, abort
 
 
-def make_ok(description=None, **attrs):
-    body = dict(**attrs if attrs else {})
-
-    if description:
-        if not isinstance(description, str) and not attrs:
-            body = description
-        else:
-            body['description'] = description
-
-    return jsonify(body)
+def make_ok(description: str):
+    return jsonify({
+        'description': description
+    })
 
 
 def get_json():

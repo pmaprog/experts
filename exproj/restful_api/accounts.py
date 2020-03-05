@@ -1,10 +1,11 @@
-from flask import Blueprint, jsonify, request, abort
+from flask import Blueprint
 from flask_login import (login_required, login_user, logout_user,
                          login_fresh, current_user, fresh_login_required,
                          user_needs_refresh)
 
 from . import *
 from .. import accounts_logic
+from ..db import USER_ACCESS
 
 
 bp = Blueprint('accounts', __name__)
@@ -49,7 +50,7 @@ def confirm():
     return make_ok('User was confirmed')
 
 
-@bp.route('/change_password', methods=['POST'])
+@bp.route('/change-password', methods=['POST'])
 @login_required #@fresh_login_required
 def change_password():
     data = get_json()
@@ -61,7 +62,7 @@ def change_password():
     return make_ok('Password has beed changed')
 
 
-@bp.route('/reset_password', methods=['POST'])
+@bp.route('/reset-password', methods=['POST'])
 def reset_password():
     data = get_json()
 
@@ -69,7 +70,7 @@ def reset_password():
     return make_ok('Successfully reset password - see new in your email')
 
 
-@bp.route('/close_all_sessions', methods=['POST'])
+@bp.route('/close-all-sessions', methods=['POST'])
 @login_required #@fresh_login_required
 def close_all_sessions():
     data = get_json()
@@ -92,31 +93,31 @@ def self_delete():
 @bp.route('/user/<int:u_id>/ban', methods=['GET'])
 @login_required
 def ban_user_by_id(u_id):
-    if current_user.service_status is not 'user':
-        accounts_logic.ban_user(u_id)
-        return make_ok('Successfully banned this user')
-    else:
+    if current_user.access < USER_ACCESS['moderator']:
         abort(403, 'No rights!')
 
-
-@bp.route('/user/<int:u_id>/admin', methods=['PUT'])
-@login_required
-def change_privileges_to_admin_by_id(u_id):
-    if current_user.service_status is 'superadmin':
-        role=request.path[request.path.rfind('/') + 1:]
-        accounts_logic.change_privileges(u_id, role)
-        return make_ok('Successfully changed privilegy of user')
-    else:
-        abort(403, 'No rights!')
+    accounts_logic.ban_user(u_id)
+    return make_ok('Successfully banned this user')
 
 
-@bp.route('/user/<int:u_id>/moderator', methods=['PUT'])
-@bp.route('/user/<int:u_id>/user', methods=['PUT'])
-@login_required
-def change_privileges_by_id(u_id):
-    if current_user.service_status in ['superadmin', 'admin']:
-        role=request.path[request.path.rfind('/') + 1:]
-        accounts_logic.change_privileges(u_id, role)
-        return make_ok('Successfully changed privilegy of user')
-    else:
-        abort(403, 'No rights!')
+# @bp.route('/user/<int:u_id>/admin', methods=['PUT'])
+# @login_required
+# def change_privileges_to_admin_by_id(u_id):
+#     if current_user.service_status is 'superadmin':
+#         role=request.path[request.path.rfind('/') + 1:]
+#         accounts_logic.change_privileges(u_id, role)
+#         return make_ok('Successfully changed privilegy of user')
+#     else:
+#         abort(403, 'No rights!')
+#
+#
+# @bp.route('/user/<int:u_id>/moderator', methods=['PUT'])
+# @bp.route('/user/<int:u_id>/user', methods=['PUT'])
+# @login_required
+# def change_privileges_by_id(u_id):
+#     if current_user.service_status in ['superadmin', 'admin']:
+#         role = request.path[request.path.rfind('/') + 1:]
+#         accounts_logic.change_privileges(u_id, role)
+#         return make_ok('Successfully changed privilegy of user')
+#     else:
+#         abort(403, 'No rights!')
