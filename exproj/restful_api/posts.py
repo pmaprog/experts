@@ -56,7 +56,8 @@ def update_post(p_id):
 def increase_post_views(p_id):
     PostClass = get_post_class(request.path)
     posts_logic.increase_views(PostClass, p_id)
-    return make_ok(f'Successfully increased {PostClass.__name__.lower()}\'s #{p_id} views')
+    return make_ok('Successfully increased'
+                   f'{PostClass.__name__.lower()}\'s #{p_id} views')
 
 
 @routes(bp, ['question', 'article', 'comment'], '/<int:p_id>/toggle-upvote')
@@ -64,12 +65,16 @@ def increase_post_views(p_id):
 @login_required
 def vote_post(p_id):
     PostClass = get_post_class(request.path)
-    action = 'up' if request.path[request.path.rfind('/') + 1:] == 'toggle-upvote' else 'down'
+    action = ('up'
+              if request.path[request.path.rfind('/') + 1:] == 'toggle-upvote'
+              else 'down')
     result = posts_logic.toggle_vote(PostClass, p_id, action)
     if result == 'deleted':
-        message = f'Successfully deleted vote for {PostClass.__name__.lower()} #{p_id}'
+        message = 'Successfully deleted vote'\
+                  f'for {PostClass.__name__.lower()} #{p_id}'
     else:
-        message = f'Successfully {action}voted {PostClass.__name__.lower()} #{p_id}'
+        message = f'Successfully {action}voted'\
+                  f'{PostClass.__name__.lower()} #{p_id}'
     return jsonify(message)
 
 
@@ -87,4 +92,19 @@ def create_comment(p_id):
     data = get_json()
     text = data['text']
     posts_logic.create_comment(PostClass, p_id, text)
-    return make_ok(f'Comment for the {PostClass.__name__.lower()} #{p_id} has been created'), 201
+    return make_ok(f'Comment for the {PostClass.__name__.lower()}'
+                   f'#{p_id} has been created'), 201
+
+
+@routes(bp, ['question', 'article'], '/<int:p_id>/domains', methods=['POST'])
+def add_domains(p_id):
+    PostClass = get_post_class(request.path)
+    data = get_json()
+    posts_logic.add_domains(PostClass, p_id, data)
+    return make_ok('Successfully added'
+                   f' domains to {PostClass.__name__.lower()}')
+
+
+# @routes(bp, ['question', 'article'], '/<int:p_id>/domains',
+# methods=['DELETE'])
+# def delete_domains(p_id):

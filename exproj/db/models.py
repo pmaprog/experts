@@ -1,25 +1,26 @@
+from datetime import datetime
+import uuid
+
 from flask_login import current_user, UserMixin
 from sqlalchemy import (Column, Integer, String, ForeignKey, Table,
                         DateTime, Boolean, UniqueConstraint)
 from sqlalchemy.dialects.postgresql import TEXT, ENUM, UUID
 from sqlalchemy.orm import relationship, backref
 
-from datetime import datetime
-import uuid
+from schema import Schema, And, Optional, Use
 
 from . import Base, get_session
 from .. import config
 
 USER_ACCESS = {
-    'guest': 0,
-    'user': 1,
-    'expert': 2,
-    'moderator': 3,
-    'admin': 4,
-    'superadmin': 5
+    'user': 0,
+    'moderator': 1,
+    'admin': 2,
+    'superadmin': 3
 }
 
-Account_status = ENUM('unconfirmed', 'active', 'deleted', 'banned', name='account_status')
+Account_status = ENUM('unconfirmed', 'active', 'deleted',
+                      'banned', name='account_status')
 Post_status = ENUM('active', 'deleted', name='post_status')
 
 
@@ -39,6 +40,38 @@ class DCommentVotes(Base):
     upvoted = Column(Boolean, nullable=False)
 
 
+class DUserDomains(Base):
+    __tablename__ = 'd_user_domains'
+
+    u_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
+    d_id = Column(Integer, ForeignKey('domains.id'), primary_key=True)
+
+
+class DPostDomains(Base):
+    __tablename__ = 'd_post_domains'
+
+    p_id = Column(Integer, ForeignKey('posts.id'), primary_key=True)
+    d_id = Column(Integer, ForeignKey('domains.id'), primary_key=True)
+    sub = Column(Boolean, default=False, nullable=False)
+    imaginary = Column(Boolean, default=False, nullable=False)
+
+
+# todo: may be change to table? it is not necessary to create whole class
+class DUserInterests(Base):
+    __tablename__ = 'd_user_interests'
+
+    u_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
+    d_id = Column(Integer, ForeignKey('domains.id'), primary_key=True)
+
+
+class Domain(Base):
+    __tablename__ = 'domains'
+
+    id = Column(Integer, primary_key=True)
+    parent = Column(Integer, ForeignKey('domains.id'))
+    name = Column(String, nullable=False)  # todo: unique?
+
+
 class User(Base, UserMixin):
     __tablename__ = 'users'
 
@@ -55,24 +88,30 @@ class User(Base, UserMixin):
     position = Column(String, nullable=False)
     access = Column(Integer, default=USER_ACCESS['user'], nullable=False)
     rating = Column(Integer, default=0, nullable=False)
-    # is_expert = Column(String, default=False, nullable=False)
-    # domains
-    # warns
     question_count = Column(Integer, default=0, nullable=False)
     article_count = Column(Integer, default=0, nullable=False)
     comment_count = Column(Integer, default=0, nullable=False)
+    # is_expert = Column(Boolean, default=False, nullable=False)
 
+    # todo: each function has lazy='dynamic'. doesn't look good
     posts = relationship('Post', lazy='dynamic')
     questions = relationship('Question', lazy='dynamic')
     articles = relationship('Article', lazy='dynamic')
     comments = relationship('Comment', lazy='dynamic')
     voted_posts = relationship('DPostVotes', lazy='dynamic')
     voted_comments = relationship('DCommentVotes', lazy='dynamic')
+    domains = relationship('DUserDomains', lazy='dynamic')
+    interests = relationship('DUserInterests', lazy='dynamic')
+    # certificates
+    # warns
+
+    def is_expert(self):
+        return self.domains.count() > 0
 
     def get_id(self):
         return self.cookie_id
 
-    # todo: rename this method and create another one
+    # todo: bad naming, rename this method and create another one
     def has_access(self, post):
         return post.u_id == current_user.id or self.access >= post.access
 
@@ -90,22 +129,22 @@ class Post(Base):
 
     id = Column(Integer, primary_key=True)
     u_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    type = Column(String(9), nullable=False)
-    title = Column(String(128), nullable=False)
-    body = Column(String(1024), nullable=False)
+    type = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    body = Column(String, nullable=False)
     creation_date = Column(DateTime, default=datetime.utcnow, nullable=False)
     view_count = Column(Integer, default=0, nullable=False)
     comment_count = Column(Integer, default=0, nullable=False)
     score = Column(Integer, default=0, nullable=False)
     status = Column(Post_status, default='active', nullable=False)
-    # edit_time = Column(DateTime)
-    # domains
+    # edit_date = Column(DateTime)
     # files
 
-    # edited_by = relationship('User', foreign_keys='')
     author = relationship('User', lazy='subquery')
     comments = relationship('Comment', lazy='dynamic')
-    voted_users = relationship('DPostVotes')
+    voted_users = relationship('DPostVotes', lazy='dynamic')
+    domains = relationship('DPostDomains', lazy='dynamic')
+    # edited_by = relationship('User', foreign_keys='')
 
     __mapper_args__ = {
         'polymorphic_on': type,
@@ -123,13 +162,24 @@ class Post(Base):
             'view_count': self.view_count,
             'score': self.score,
             'comment_count': self.comment_count,
-            'tags': ['todo']
+            'domains': [d.d_id for d in self.domains
+                .filter(DPostDomains.sub == False).all()],
+            'subdomains': [subd.d_id for subd in self.domains
+                .filter(DPostDomains.sub == True,
+                        Domain.parent.isnot(None)).all()]
         }
 
 
 class Question(Post):
-    access = Column(Integer, default=USER_ACCESS['guest'], nullable=False)
-    # closed
+    only_experts_answer = Column(Boolean, nullable=False)
+    closed = Column(Boolean, nullable=False)
+
+    schema = Schema({
+        'title': And(str, lambda s: 20 < len(s) <= 128),
+        'body': And(str, lambda s: 0 < len(s) <= 1024),
+        'only_experts_answer': bool,
+        'closed': bool
+    })
 
     # def __init__(self, *args, **kwargs):
     #     super(Question, self).__init__(*args, **kwargs)
@@ -149,6 +199,11 @@ class Article(Post):
         'polymorphic_identity': 'articles'
     }
 
+    schema = Schema({
+        'title': And(str, lambda s: 20 < len(s) <= 128),
+        'body': And(str, lambda s: 0 < len(s) <= 1024)
+    })
+
 
 class Comment(Base):
     __tablename__ = 'comments'
@@ -166,7 +221,11 @@ class Comment(Base):
     # edited_by
     author = relationship('User', lazy='subquery')
     post = relationship('Post', lazy='subquery')
-    voted_users = relationship('DCommentVotes')
+    voted_users = relationship('DCommentVotes', lazy='dynamic')
+
+    # schema = Schema({
+    #     'text': And(str, lambda s: 20 < len(s) <= 250),
+    # })
 
     def as_dict(self):
         return {

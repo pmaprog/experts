@@ -1,16 +1,16 @@
 from flask import abort
 from flask_login import current_user
 from sqlalchemy import or_
-from schema import Schema, And, Optional, Use
 
 from . import logger
-from .db import get_session, USER_ACCESS
-from .db import User, Post, Question, Article, Comment, DPostVotes, DCommentVotes
+from .db import *
 
 
 def get_many(PostClass, offset=None, limit=None):
     with get_session() as s:
-        query = s.query(PostClass).filter(PostClass.status == 'active').order_by(PostClass.creation_date.desc())
+        query = s.query(PostClass)\
+            .filter(PostClass.status == 'active')\
+            .order_by(PostClass.creation_date.desc())
 
         # todo
         # is it necessary? get only those questions that the user has access to
@@ -45,49 +45,55 @@ def get(PostClass, p_id):
 def create(PostClass, data):
     u_id = current_user.id
 
-    Schema({
-        'title': And(str, And(lambda s: 20 < len(s) <= 128, error='from 20 to 128')),
-        'body': And(str, lambda s: 0 < len(s) <= 1024),
-        'access': lambda s: s in USER_ACCESS.keys()
-    }).validate(data)
+    PostClass.schema.validate(data)
 
     with get_session() as s:
         s.add(current_user)
-        p = PostClass(u_id=u_id, title=data['title'], body=data['body'], access=USER_ACCESS[data['access']])
+        if PostClass == Question:
+            p = Question(u_id=u_id, title=data['title'], body=data['body'],
+                         only_experts_answer=data['only_experts_answer'],
+                         closed=data['closed'])
+        elif PostClass == Article:
+            p = Article(u_id=u_id, title=data['title'], body=data['body'])
         s.add(p)
         s.commit()
         # current_user.increment_count(PostClass)
+
         if PostClass == Question:
             current_user.question_count += 1
-        if PostClass == Article:
+        elif PostClass == Article:
             current_user.article_count += 1
+
         return p.id  # return created question's id
 
 
 def delete(PostClass, p_id):
     with get_session() as s:
         s.add(current_user)
+
         p = PostClass.get_or_404(s, p_id)
-        if current_user.access < USER_ACCESS['moderator'] and p.u_id != current_user.id:
+
+        if (current_user.access < USER_ACCESS['moderator'] and
+                p.u_id != current_user.id):
             abort(403)
+
         if PostClass == Question:
             current_user.question_count -= 1
-        if PostClass == Article:
+        elif PostClass == Article:
             current_user.article_count -= 1
+
         # todo: decrease comment_count for all users who comment to the post
         p.status = 'deleted'
 
 
 def update(PostClass, p_id, new_data):
-    Schema(And(lambda x: x != {}, {
-        Optional('title'): And(str, lambda s: 20 < len(s) <= 128),
-        Optional('body'): And(str, lambda s: 0 < len(s) <= 1024),
-    })).validate(new_data)
+    PostClass.schema.validate(new_data)
 
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
 
-        if current_user.access < USER_ACCESS['moderator'] and p.u_id != current_user.id:
+        if (current_user.access < USER_ACCESS['moderator'] and
+                p.u_id != current_user.id):
             abort(403)
 
         for attr, val in new_data.items():
@@ -154,7 +160,9 @@ def toggle_vote(PostClass, p_id, action):
 def get_post_comments(PostClass, p_id):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
-        comments = [c.as_dict() for c in p.comments.filter(Comment.status == 'ok').all()]
+        comments = [c.as_dict() for c in p.comments
+                    .filter(Comment.status == 'active')
+                    .order_by(Comment.creation_date.desc()).all()]
         return comments
 
 
@@ -174,3 +182,13 @@ def create_comment(PostClass, p_id, text):
         current_user.comment_count += 1
         s.commit()
         return comment.as_dict()
+
+
+def add_domains(PostClass, p_id, domains):
+    with get_session() as s:
+        p = PostClass.get_or_404(s, p_id)
+        # d = s.query(Domain).filter(Domain.id.in_(data['domains'])).all()
+        # subd = s.query(Domain).filter(Domain.id.in_(data['subdomains']),
+        #                               Domain.parent.isnot(None)).all()
+        for d in domains:
+            s.add(DPostDomains(p_id=p_id, d_id=d.id, sub=d.parent is not None))

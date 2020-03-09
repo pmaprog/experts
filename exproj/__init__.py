@@ -31,12 +31,12 @@ app.config.update(
     JSON_SORT_KEYS=False
 )
 
-CORS(app)
-
 app.register_blueprint(accounts.bp)
 app.register_blueprint(users.bp)
 app.register_blueprint(posts.bp)
 app.register_blueprint(comments.bp)
+
+CORS(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)

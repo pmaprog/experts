@@ -1,21 +1,21 @@
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy import desc
-
-from datetime import datetime
-import requests
-import logging
-import os
-import nanoid
+from flask_login import current_user
 
 from .db import *
-from . import util
-from . import logger
 
 
 def get_posts(PostClass, u_id):
     with get_session() as s:
         User.get_or_404(s, u_id)
         posts = [p.as_dict() for p in s.query(PostClass)
-            .filter(PostClass.u_id == u_id)
-            .order_by(PostClass.creation_date.desc()).all()]
+                 .filter(PostClass.u_id == u_id)
+                 .order_by(PostClass.creation_date.desc()).all()]
         return posts
+
+
+def make_expert(u_id):
+    if current_user.access < USER_ACCESS['moderator']:
+        abort(403)
+
+    with get_session() as s:
+        u = User.get_or_404(s, u_id)
+        u.is_expert = True

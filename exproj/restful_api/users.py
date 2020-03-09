@@ -16,3 +16,10 @@ def get_user_posts(u_id):
     PostClass = get_post_class(request.path)
     posts = users_logic.get_posts(PostClass, u_id)
     return jsonify(posts)
+
+
+# @bp.route('/user/<int:u_id>/expert-status')
+# def make_expert(u_id):
+#     print(request.args)
+#     users_logic.set_expert(u_id)
+#     return make_ok('')
