@@ -34,10 +34,12 @@ def pre_login(email, password):
         return user
 
 
-def register_user(email, name, surname, password, position):
+def register_user(data):
+    User.registration_schema.validate(data)
+
     with get_session() as s:
         user = s.query(User).filter(
-            User.email == email
+            User.email == data['email']
         ).one_or_none()
 
         # checking unique link
@@ -49,28 +51,29 @@ def register_user(email, name, surname, password, position):
             if not exists:
                 break
 
-        pw = bcrypt.hashpw(str(password).encode('utf-8'),
+        pw = bcrypt.hashpw(str(data['password']).encode('utf-8'),
                            bcrypt.gensalt()).decode('utf-8')
 
         if user:
-            if user.account_status == 'deleted':
+            if user.status == 'deleted':
                 user.password = pw
-                user.name = name
-                user.surname = surname
-                user.account_status = config.DEFAULT_USER_STATUS
+                user.name = data['name']
+                user.surname = data['surname']
+                user.status = config.DEFAULT_USER_STATUS
                 user.confirmation_link = confirmation_link
-            elif user.account_status == 'banned':
+            elif user.status == 'banned':
                 abort(409, 'User with this email was banned')
             else:
                 abort(409, 'Trying to register existing user')
         else:
-            user = User(email=email, name=name,
-                        surname=surname, password=pw, position=position,
+            user = User(email=data['email'], name=data['name'],
+                        surname=data['surname'], password=pw,
+                        position=data['position'],
                         confirmation_link=confirmation_link)
             s.add(user)
         if config.DEFAULT_USER_STATUS == 'unconfirmed':
-            util.send_email(email, confirmation_link)
-        logging.info('Registering new user [{}]'.format(email))
+            util.send_email(data['email'], confirmation_link)
+        logging.info('Registering new user [{}]'.format(data['email']))
 
 
 def confirm_user(confirmation_link):
@@ -147,7 +150,7 @@ def self_delete(u_id, password):
         pw = str(user.password).encode('utf-8')
         if not bcrypt.checkpw(opw, pw):
             abort(422, 'Invalid password')
-        user.account_status = 'deleted'
+        user.status = 'deleted'
 
 
 def ban_user(u_id):

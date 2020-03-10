@@ -33,12 +33,11 @@ def logout():
 @bp.route('/register', methods=['POST'])
 def register():
     if current_user.is_authenticated:
-        abort(409, 'User is currently authenticated!')
+        abort(409, 'User is currently authenticated')
 
     data = get_json()
 
-    accounts_logic.register_user(data['email'], data['name'], data['surname'],
-                                 data['password'], data['position'])
+    accounts_logic.register_user(data)
     return make_ok('User was registered'), 201
 
 
@@ -50,7 +49,7 @@ def confirm():
     return make_ok('User was confirmed')
 
 
-@bp.route('/change-password', methods=['POST'])
+@bp.route('/change_password', methods=['POST'])
 @login_required #@fresh_login_required
 def change_password():
     data = get_json()
@@ -62,7 +61,7 @@ def change_password():
     return make_ok('Password has beed changed')
 
 
-@bp.route('/reset-password', methods=['POST'])
+@bp.route('/reset_password', methods=['POST'])
 def reset_password():
     data = get_json()
 
@@ -70,7 +69,7 @@ def reset_password():
     return make_ok('Successfully reset password - see new in your email')
 
 
-@bp.route('/close-all-sessions', methods=['POST'])
+@bp.route('/close_all_sessions', methods=['POST'])
 @login_required #@fresh_login_required
 def close_all_sessions():
     data = get_json()
