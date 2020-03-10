@@ -6,16 +6,20 @@ from . import logger
 from .db import *
 
 
-def get_many(PostClass, offset=None, limit=None):
+def get_many(PostClass, offset=None, limit=None, closed=None):
     with get_session() as s:
         query = s.query(PostClass)\
             .filter(PostClass.status == 'active')\
             .order_by(PostClass.creation_date.desc())
 
-        # todo
-        # is it necessary? get only those questions that the user has access to
-        # if user_access and PostClass == Question:
-        #     query = query.filter(or_(current_user.id == Question.u_id, current_user.access >= Question.access))
+        if closed and closed != '0':
+            if PostClass != Question:
+                abort(422, '`closed` parameter is not compatible with article')
+            if not current_user.has_access('expert'):
+                abort(403, 'You can\'t view closed questions')
+            query = query.filter(Question.closed.is_(True))
+        else:
+            query = query.filter(Question.closed.is_(False))
 
         if offset and limit:
             try:
@@ -38,20 +42,24 @@ def get_many(PostClass, offset=None, limit=None):
 def get(PostClass, p_id):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
+        if p.closed and not current_user.has_access('expert'):
+            abort(403)
         return p.as_dict()
 
 
-# todo: article does not have `access` column
 def create(PostClass, data):
     u_id = current_user.id
 
     PostClass.schema.validate(data)
+    if data['closed'] is True and not current_user.has_access('expert'):
+        abort(422, 'You cannot create closed questions')
 
     with get_session() as s:
         s.add(current_user)
         if PostClass == Question:
             p = Question(u_id=u_id, title=data['title'], body=data['body'],
                          only_experts_answer=data['only_experts_answer'],
+                         only_chosen_domains=data['only_chosen_domains'],
                          closed=data['closed'])
         elif PostClass == Article:
             p = Article(u_id=u_id, title=data['title'], body=data['body'])
@@ -73,7 +81,7 @@ def delete(PostClass, p_id):
 
         p = PostClass.get_or_404(s, p_id)
 
-        if (current_user.access < USER_ACCESS['moderator'] and
+        if (not current_user.has_access('moderator') and
                 p.u_id != current_user.id):
             abort(403)
 
@@ -92,7 +100,7 @@ def update(PostClass, p_id, new_data):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
 
-        if (current_user.access < USER_ACCESS['moderator'] and
+        if (not current_user.has_access('moderator') and
                 p.u_id != current_user.id):
             abort(403)
 
@@ -114,9 +122,8 @@ def toggle_vote(PostClass, p_id, action):
 
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
-
-        if not current_user.has_access(p.post if PostClass == Comment else p):
-            abort(403, 'You can\'t vote for this')
+        if p.closed and not current_user.has_access('expert'):
+            abort(403)
 
         if PostClass == Comment:
             cur_vote = s.query(DCommentVotes).get((u_id, p_id))
@@ -124,7 +131,7 @@ def toggle_vote(PostClass, p_id, action):
         else:
             cur_vote = s.query(DPostVotes).get((u_id, p_id))
             new_vote = DPostVotes(u_id=u_id, p_id=p_id)
-
+        # todo: ACCESS TO VOTE???
         if action == 'up':
             if cur_vote:
                 if cur_vote.upvoted:
@@ -160,6 +167,8 @@ def toggle_vote(PostClass, p_id, action):
 def get_post_comments(PostClass, p_id):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
+        if p.closed and not current_user.has_access('expert'):
+            abort(403, 'You must be an expert')
         comments = [c.as_dict() for c in p.comments
                     .filter(Comment.status == 'active')
                     .order_by(Comment.creation_date.desc()).all()]
@@ -173,8 +182,8 @@ def create_comment(PostClass, p_id, text):
         s.add(current_user)
         p = PostClass.get_or_404(s, p_id)
 
-        if PostClass == Question and not current_user.has_access(p):
-            abort(403, 'You cannot answer to the question')
+        if PostClass == Question and not current_user.can_answer(p):
+            abort(403, 'You must be an expert to answer the question')
 
         comment = Comment(u_id=u_id, p_id=p_id, text=text)
         p.comments.append(comment)
