@@ -7,14 +7,13 @@ from . import *
 from .. import accounts_logic
 from ..db import USER_ACCESS
 
-
 bp = Blueprint('accounts', __name__)
 
 
 @bp.route('/login', methods=['POST'])
 def login():
     if current_user.is_authenticated:
-        abort(409, 'User is currently authenticated!')
+        abort(409, 'User is currently authenticated')
 
     data = get_json()
 
@@ -75,7 +74,7 @@ def close_all_sessions():
     data = get_json()
 
     user = accounts_logic.close_all_sessions(current_user.id, data['password'])
-    login_user(user)
+    login_user(user)  # todo: LOGIN???
     return make_ok('Logout from all other sessions')
 
 
@@ -86,37 +85,19 @@ def self_delete():
 
     accounts_logic.self_delete(current_user.id, data['password'])
     logout_user()
-    return make_ok('Successfully delete account.')
+    return make_ok('Successfully delete account')
 
 
 @bp.route('/user/<int:u_id>/ban', methods=['GET'])
 @login_required
 def ban_user_by_id(u_id):
-    if current_user.access < USER_ACCESS['moderator']:
-        abort(403, 'No rights!')
-
     accounts_logic.ban_user(u_id)
     return make_ok('Successfully banned this user')
 
 
-# @bp.route('/user/<int:u_id>/admin', methods=['PUT'])
-# @login_required
-# def change_privileges_to_admin_by_id(u_id):
-#     if current_user.service_status is 'superadmin':
-#         role=request.path[request.path.rfind('/') + 1:]
-#         accounts_logic.change_privileges(u_id, role)
-#         return make_ok('Successfully changed privilegy of user')
-#     else:
-#         abort(403, 'No rights!')
-#
-#
-# @bp.route('/user/<int:u_id>/moderator', methods=['PUT'])
-# @bp.route('/user/<int:u_id>/user', methods=['PUT'])
-# @login_required
-# def change_privileges_by_id(u_id):
-#     if current_user.service_status in ['superadmin', 'admin']:
-#         role = request.path[request.path.rfind('/') + 1:]
-#         accounts_logic.change_privileges(u_id, role)
-#         return make_ok('Successfully changed privilegy of user')
-#     else:
-#         abort(403, 'No rights!')
+@bp.route('/user/<int:u_id>/role', methods=['PUT'])
+@login_required
+def update_role(u_id):
+    data = get_json()
+    accounts_logic.update_role(u_id, data['role'])
+    return make_ok('Successfully updated user\'s role')

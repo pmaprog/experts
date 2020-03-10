@@ -15,7 +15,7 @@ def get_posts():
     limit = args.get('limit')
     closed = args.get('closed')
     PostClass = get_post_class(request.path)
-    posts = posts_logic.get_many(PostClass, offset, limit, closed)
+    posts = posts_logic.get_many(PostClass, None, closed, offset, limit)
     return jsonify(posts)
 
 

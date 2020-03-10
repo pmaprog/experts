@@ -4,7 +4,9 @@ import nanoid
 import uuid
 
 from flask import abort
-from .db import get_session, User
+from flask_login import current_user
+
+from .db import get_session, User, USER_ACCESS
 from . import config, util
 
 
@@ -86,7 +88,7 @@ def confirm_user(confirmation_link):
                 user.status = 'active'
                 logging.info('User [{}] is confirmed'.format(user.email))
             else:
-                abort(409, 'User is currently confirmed by'
+                abort(409, 'User is currently confirmed by '
                            'this link or can\'t be confirmed')
 
         abort(404, 'No user with this confirmation link')
@@ -94,23 +96,22 @@ def confirm_user(confirmation_link):
 
 def change_password(u_id, old_password, new_password):
     with get_session() as s:
-        user = s.query(User).filter(
-            User.id == u_id
-        ).one_or_none()
+        u = User.get_or_404(s, u_id)
         opw = str(old_password).encode('utf-8')
         npw = str(new_password).encode('utf-8')
-        pw = str(user.password).encode('utf-8')
+        pw = str(u.password).encode('utf-8')
 
         if not bcrypt.checkpw(opw, pw):
             abort(422, 'Invalid password')
         if bcrypt.checkpw(npw, pw):
             abort(422, 'Old and new passwords are equal')
         npw = bcrypt.hashpw(npw, bcrypt.gensalt())
-        user.password = npw.decode('utf-8')
-        user.cookie_id = uuid.uuid4()
-        return user
+        u.password = npw.decode('utf-8')
+        u.cookie_id = uuid.uuid4()
+        return u
 
 
+# todo: user can reset password of another user
 def reset_password(email):
     with get_session() as s:
         user = s.query(User).filter(
@@ -130,48 +131,49 @@ def reset_password(email):
 
 def close_all_sessions(u_id, password):
     with get_session() as s:
-        user = s.query(User).filter(
-            User.id == u_id
-        ).one_or_none()
+        u = User.get_or_404(s, u_id)
         opw = str(password).encode('utf-8')
-        pw = str(user.password).encode('utf-8')
+        pw = str(u.password).encode('utf-8')
         if not bcrypt.checkpw(opw, pw):
             abort(422, 'Invalid password')
-        user.cookie_id = uuid.uuid4()
-        return user
+        u.cookie_id = uuid.uuid4()
+        return u
 
 
+# todo: logout from all sessions
 def self_delete(u_id, password):
     with get_session() as s:
-        user = s.query(User).filter(
-            User.id == u_id
-        ).one_or_none()
+        u = User.get_or_404(s, u_id)
         opw = str(password).encode('utf-8')
-        pw = str(user.password).encode('utf-8')
+        pw = str(u.password).encode('utf-8')
         if not bcrypt.checkpw(opw, pw):
             abort(422, 'Invalid password')
-        user.status = 'deleted'
+        u.status = 'deleted'
 
 
+# todo: logout from all sessions
 def ban_user(u_id):
     with get_session() as s:
-        user = s.query(User).filter(
-            User.id == u_id,
-        ).one_or_none()
+        u = User.get_or_404(s, u_id)
+        if not current_user.has_access('moderator'):
+            abort(403)
+        if u.status == 'banned':
+            abort(409, 'User has already banned')
+        u.status = 'banned'
 
-        if not user:
-            abort(404, 'No user with this id')
-        user.status = 'banned'
 
-
-def change_privileges(u_id, role):
+def update_role(u_id, role):
     with get_session() as s:
-        user = s.query(User).filter(
-            User.id == u_id,
-        ).one_or_none()
+        u = User.get_or_404(s, u_id)
 
-        if not user:
-            abort(404, 'No user with this id')
+        if (not current_user.has_access('moderator') or
+                (not current_user.has_access('admin') and
+                 role == 'moderator') or
+                (not current_user.has_access('superadmin') and
+                 role == 'admin') or role == 'superadmin'):
+            abort(403)
 
-        if user.service_status == role:
+        if u.access == USER_ACCESS[role]:
             abort(409, 'User already has that role')
+
+        u.access = USER_ACCESS[role]

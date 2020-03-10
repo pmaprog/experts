@@ -92,7 +92,6 @@ class User(Base, UserMixin):
     question_count = Column(Integer, default=0, nullable=False)
     article_count = Column(Integer, default=0, nullable=False)
     comment_count = Column(Integer, default=0, nullable=False)
-    # is_expert = Column(Boolean, default=False, nullable=False)
 
     # todo: each function has lazy='dynamic'. doesn't look good
     posts = relationship('Post', lazy='dynamic')
@@ -113,9 +112,32 @@ class User(Base, UserMixin):
         'email': str,
         'position': str,
     })
+    update_schema = Schema(And(
+        lambda x: x != {},
+        {
+            Optional('name'): str,
+            Optional('surname'): str,
+            Optional('email'): str,
+            Optional('position'): str
+        }
+    ))
 
     def get_id(self):
         return self.cookie_id
+
+    def as_dict(self):
+        return {
+            'name': self.name,
+            'surname': self.surname,
+            'email': self.email,
+            'role': [key for key, value in USER_ACCESS.items()
+                     if value == self.access][0],
+            'position': self.position,
+            'rating': self.rating,
+            'question_count': self.question_count,
+            'article_count': self.article_count,
+            'comment_count': self.comment_count
+        }
 
     def has_access(self, access):
         return self.access >= USER_ACCESS[access]
