@@ -13,10 +13,11 @@ from . import Base, get_session
 from .. import config
 
 USER_ACCESS = {
-    'user': 0,
-    'moderator': 1,
-    'admin': 2,
-    'superadmin': 3
+    'user':       0,
+    'expert':     1,
+    'moderator':  2,
+    'admin':      3,
+    'superadmin': 4
 }
 
 Account_status = ENUM('unconfirmed', 'active', 'deleted',
@@ -105,15 +106,34 @@ class User(Base, UserMixin):
     # certificates
     # warns
 
-    def is_expert(self):
-        return self.domains.count() > 0
+    registration_schema = Schema({
+        'name': str,
+        'surname': str,
+        'password': str,
+        'email': str,
+        'position': str,
+    })
 
     def get_id(self):
         return self.cookie_id
 
-    # todo: bad naming, rename this method and create another one
-    def has_access(self, post):
-        return post.u_id == current_user.id or self.access >= post.access
+    def has_access(self, access):
+        return self.access >= USER_ACCESS[access]
+
+    def can_answer(self, q):
+        if q.u_id == self.id:
+            return True
+
+        if ((q.closed or q.only_experts_answer or q.only_chosen_domains) and
+                not self.has_access('expert')):
+            return False
+
+        if (q.only_chosen_domains and
+                 len(set([i.d_id for i in self.domains.all()]) &
+                     set([i.d_id for i in q.domains.all()])) == 0):
+            return False
+
+        return True
 
     # def increment_count(self, cls):
     #     if cls == Question:
@@ -148,7 +168,7 @@ class Post(Base):
 
     __mapper_args__ = {
         'polymorphic_on': type,
-        'polymorphic_identity': 'posts'
+        'polymorphic_identity': 'post'
     }
 
     def as_dict(self):
@@ -172,31 +192,25 @@ class Post(Base):
 
 class Question(Post):
     only_experts_answer = Column(Boolean, nullable=False)
+    only_chosen_domains = Column(Boolean, nullable=False)
     closed = Column(Boolean, nullable=False)
 
     schema = Schema({
         'title': And(str, lambda s: 20 < len(s) <= 128),
         'body': And(str, lambda s: 0 < len(s) <= 1024),
         'only_experts_answer': bool,
+        'only_chosen_domains': bool,
         'closed': bool
     })
 
-    # def __init__(self, *args, **kwargs):
-    #     super(Question, self).__init__(*args, **kwargs)
-    #     self.access = USER_ACCESS[kwargs.get('access')]
-
-    # def has_access(self):
-    #     return (self.author is current_user or
-    #             current_user.access >= self.access)
-
     __mapper_args__ = {
-        'polymorphic_identity': 'questions'
+        'polymorphic_identity': 'question'
     }
 
 
 class Article(Post):
     __mapper_args__ = {
-        'polymorphic_identity': 'articles'
+        'polymorphic_identity': 'article'
     }
 
     schema = Schema({
