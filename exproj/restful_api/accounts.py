@@ -74,7 +74,7 @@ def close_all_sessions():
     data = get_json()
 
     user = accounts_logic.close_all_sessions(current_user.id, data['password'])
-    login_user(user)  # todo: LOGIN???
+    login_user(user)
     return make_ok('Logout from all other sessions')
 
 
@@ -88,16 +88,15 @@ def self_delete():
     return make_ok('Successfully delete account')
 
 
-@bp.route('/user/<int:u_id>/ban', methods=['GET'])
+@bp.route('/user/<int:u_id>/ban')
 @login_required
 def ban_user_by_id(u_id):
     accounts_logic.ban_user(u_id)
     return make_ok('Successfully banned this user')
 
 
-@bp.route('/user/<int:u_id>/role', methods=['PUT'])
+@bp.route('/user/<int:u_id>/role/<role>')
 @login_required
-def update_role(u_id):
-    data = get_json()
-    accounts_logic.update_role(u_id, data['role'])
+def update_role(u_id, role):
+    accounts_logic.update_role(u_id, role)
     return make_ok('Successfully updated user\'s role')

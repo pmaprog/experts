@@ -85,6 +85,7 @@ class User(Base, UserMixin):
     surname = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     password = Column(TEXT, nullable=False)
+    creation_date = Column(DateTime, default=datetime.utcnow, nullable=False)
     confirmation_link = Column(String, nullable=False)
     position = Column(String, nullable=False)
     access = Column(Integer, default=USER_ACCESS['user'], nullable=False)
@@ -134,6 +135,7 @@ class User(Base, UserMixin):
                      if value == self.access][0],
             'position': self.position,
             'rating': self.rating,
+            'creation_date': self.creation_date.timestamp(),
             'question_count': self.question_count,
             'article_count': self.article_count,
             'comment_count': self.comment_count
@@ -151,8 +153,8 @@ class User(Base, UserMixin):
             return False
 
         if (q.only_chosen_domains and
-                 len(set([i.d_id for i in self.domains.all()]) &
-                     set([i.d_id for i in q.domains.all()])) == 0):
+                len(set([i.d_id for i in self.domains.all()]) &
+                    set([i.d_id for i in q.domains.all()])) == 0):
             return False
 
         return True
@@ -204,11 +206,10 @@ class Post(Base):
             'view_count': self.view_count,
             'score': self.score,
             'comment_count': self.comment_count,
-            'domains': [d.d_id for d in self.domains
+            'domains': [d.name for d in self.domains
                 .filter(DPostDomains.sub == False).all()],
-            'subdomains': [subd.d_id for subd in self.domains
-                .filter(DPostDomains.sub == True,
-                        Domain.parent.isnot(None)).all()]
+            'subdomains': [subd.name for subd in self.domains
+                .filter(DPostDomains.sub == True).all()]
         }
 
 

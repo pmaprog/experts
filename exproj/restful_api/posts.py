@@ -53,7 +53,7 @@ def update_post(p_id):
 
 
 # todo
-@routes(bp, ['question', 'article'], '/<int:p_id>/increase-views')
+@routes(bp, ['question', 'article'], '/<int:p_id>/increase_views')
 def increase_post_views(p_id):
     PostClass = get_post_class(request.path)
     posts_logic.increase_views(PostClass, p_id)
@@ -61,13 +61,13 @@ def increase_post_views(p_id):
                    f'{PostClass.__name__.lower()}\'s #{p_id} views')
 
 
-@routes(bp, ['question', 'article', 'comment'], '/<int:p_id>/toggle-upvote')
-@routes(bp, ['question', 'article', 'comment'], '/<int:p_id>/toggle-downvote')
+@routes(bp, ['question', 'article', 'comment'], '/<int:p_id>/toggle_upvote')
+@routes(bp, ['question', 'article', 'comment'], '/<int:p_id>/toggle_downvote')
 @login_required
 def vote_post(p_id):
     PostClass = get_post_class(request.path)
     action = ('up'
-              if request.path[request.path.rfind('/') + 1:] == 'toggle-upvote'
+              if request.path[request.path.rfind('/') + 1:] == 'toggle_upvote'
               else 'down')
     result = posts_logic.toggle_vote(PostClass, p_id, action)
     if result == 'deleted':
@@ -98,6 +98,7 @@ def create_comment(p_id):
 
 
 @routes(bp, ['question', 'article'], '/<int:p_id>/domains', methods=['POST'])
+@login_required
 def add_domains(p_id):
     PostClass = get_post_class(request.path)
     data = get_json()

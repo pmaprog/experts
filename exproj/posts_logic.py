@@ -206,7 +206,7 @@ def create_comment(PostClass, p_id, text):
         return comment.as_dict()
 
 
-def add_domains(PostClass, p_id, domains):
+def update_domains(PostClass, p_id, domains):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
         # d = s.query(Domain).filter(Domain.id.in_(data['domains'])).all()

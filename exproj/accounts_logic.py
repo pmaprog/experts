@@ -140,7 +140,6 @@ def close_all_sessions(u_id, password):
         return u
 
 
-# todo: logout from all sessions
 def self_delete(u_id, password):
     with get_session() as s:
         u = User.get_or_404(s, u_id)
@@ -151,7 +150,6 @@ def self_delete(u_id, password):
         u.status = 'deleted'
 
 
-# todo: logout from all sessions
 def ban_user(u_id):
     with get_session() as s:
         u = User.get_or_404(s, u_id)
@@ -163,6 +161,9 @@ def ban_user(u_id):
 
 
 def update_role(u_id, role):
+    if role == 'superadmin' or role not in USER_ACCESS.keys():
+        abort(422, 'Unknown role')
+
     with get_session() as s:
         u = User.get_or_404(s, u_id)
 
