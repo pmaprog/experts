@@ -1,14 +1,15 @@
 from flask import Blueprint
-from flask_login import current_user, login_required
+from flask_login import login_required, current_user
 
 from . import *
 from ..util import get_post_class, routes
-from .. import posts_logic
+from exproj.logic import posts as posts_logic
+from exproj.validation import validate_domains, schemas
 
 bp = Blueprint('posts', __name__)
 
 
-@routes(bp, ['questions', 'articles'])
+@routes(bp, ['question', 'article'], '/all')
 def get_posts():
     args = request.args
     offset = args.get('offset')
@@ -24,6 +25,12 @@ def get_posts():
 def create_post():
     PostClass = get_post_class(request.path)
     data = get_json()
+
+    if data['closed'] is True and not current_user.has_access('expert'):
+        abort(422, 'You cannot create closed questions')
+    schemas.question.validate(data)
+    validate_domains(data['domains'])
+
     p_id = posts_logic.create(PostClass, data)
     return make_ok(f'{PostClass.__name__} #{p_id} successfully created'), 201
 
@@ -39,7 +46,7 @@ def get_post(p_id):
 @login_required
 def delete_post(p_id):
     PostClass = get_post_class(request.path)
-    posts_logic.delete(p_id)
+    posts_logic.delete(PostClass, p_id)
     return make_ok(f'{PostClass.__name__} #{p_id} has been deleted')
 
 
@@ -48,7 +55,9 @@ def delete_post(p_id):
 def update_post(p_id):
     PostClass = get_post_class(request.path)
     data = get_json()
-    posts_logic.update(p_id, data)
+    # schemas.post_update.validate(data)
+    validate_domains(data['domains'])
+    posts_logic.update(PostClass, p_id, data)
     return make_ok(f'{PostClass.__name__} #{p_id} has been updated')
 
 
@@ -95,18 +104,3 @@ def create_comment(p_id):
     posts_logic.create_comment(PostClass, p_id, text)
     return make_ok(f'Comment for the {PostClass.__name__.lower()} '
                    f'#{p_id} has been created'), 201
-
-
-@routes(bp, ['question', 'article'], '/<int:p_id>/domains', methods=['POST'])
-@login_required
-def add_domains(p_id):
-    PostClass = get_post_class(request.path)
-    data = get_json()
-    posts_logic.add_domains(PostClass, p_id, data)
-    return make_ok('Successfully added '
-                   f'domains to {PostClass.__name__.lower()}')
-
-
-# @routes(bp, ['question', 'article'], '/<int:p_id>/domains',
-# methods=['DELETE'])
-# def delete_domains(p_id):

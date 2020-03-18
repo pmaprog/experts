@@ -1,11 +1,11 @@
 from flask import Blueprint
 from flask_login import (login_required, login_user, logout_user,
-                         login_fresh, current_user, fresh_login_required,
-                         user_needs_refresh)
+                         current_user)
 
 from . import *
-from .. import accounts_logic
+from exproj.logic import accounts as accounts_logic
 from ..db import USER_ACCESS
+from exproj.validation import schemas
 
 bp = Blueprint('accounts', __name__)
 
@@ -35,6 +35,7 @@ def register():
         abort(409, 'User is currently authenticated')
 
     data = get_json()
+    schemas.registration.validate(data)
 
     accounts_logic.register_user(data)
     return make_ok('User was registered'), 201
@@ -54,8 +55,8 @@ def change_password():
     data = get_json()
 
     user = accounts_logic.change_password(current_user.id,
-                                          data['old_password'],
-                                          data['new_password'])
+                                    data['old_password'],
+                                    data['new_password'])
     login_user(user)
     return make_ok('Password has beed changed')
 
@@ -98,5 +99,14 @@ def ban_user_by_id(u_id):
 @bp.route('/user/<int:u_id>/role/<role>')
 @login_required
 def update_role(u_id, role):
+    if any([not current_user.has_access('moderator'),
+            not current_user.has_access('admin') and role == 'moderator',
+            not current_user.has_access('superadmin') and role == 'admin',
+            role == 'superadmin']):
+        abort(403)
+
+    if role == 'superadmin' or role not in USER_ACCESS.keys():
+        abort(422, 'Unknown role')
+
     accounts_logic.update_role(u_id, role)
     return make_ok('Successfully updated user\'s role')

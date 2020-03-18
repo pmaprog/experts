@@ -57,7 +57,6 @@ def create_tables(password):
             surname='Surname',
             status='active',
             confirmation_link='none',
-            position='unemployed',
             access=USER_ACCESS['superadmin']
         )
         s.add(root)

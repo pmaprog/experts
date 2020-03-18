@@ -1,7 +1,7 @@
 from flask import Blueprint
 
 from . import *
-from .. import posts_logic, comments_logic
+from exproj.logic import comments as comments_logic
 
 bp = Blueprint('comments', __name__, url_prefix='/comment')
 

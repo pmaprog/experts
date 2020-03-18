@@ -1,7 +1,5 @@
-from flask_login import current_user
-
-from . import posts_logic
-from .db import *
+from exproj.logic import posts as posts_logic
+from exproj.db import *
 
 
 def get_many():
@@ -21,7 +19,6 @@ def get(u_id):
 
 
 def update(u_id, new_data):
-    User.update_schema.validate(new_data)  # todo
     with get_session() as s:
         u = User.get_or_404(s, u_id)
 

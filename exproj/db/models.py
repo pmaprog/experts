@@ -1,3 +1,7 @@
+"""
+    Приставка d(ictonary) означает что объект имеет структуру словаря
+"""
+
 from datetime import datetime
 import uuid
 
@@ -6,8 +10,6 @@ from sqlalchemy import (Column, Integer, String, ForeignKey, Table,
                         DateTime, Boolean, UniqueConstraint)
 from sqlalchemy.dialects.postgresql import TEXT, ENUM, UUID
 from sqlalchemy.orm import relationship, backref
-
-from schema import Schema, And, Optional, Use
 
 from . import Base, get_session
 from .. import config
@@ -53,8 +55,8 @@ class DPostDomains(Base):
 
     p_id = Column(Integer, ForeignKey('posts.id'), primary_key=True)
     d_id = Column(Integer, ForeignKey('domains.id'), primary_key=True)
-    sub = Column(Boolean, default=False, nullable=False)
     imaginary = Column(Boolean, default=False, nullable=False)
+    domain = relationship('Domain', lazy='joined')
 
 
 # todo: may be change to table? it is not necessary to create whole class
@@ -69,7 +71,7 @@ class Domain(Base):
     __tablename__ = 'domains'
 
     id = Column(Integer, primary_key=True)
-    parent = Column(Integer, ForeignKey('domains.id'))
+    parent_id = Column(Integer, ForeignKey('domains.id'))
     name = Column(String, nullable=False)  # todo: unique?
 
 
@@ -85,43 +87,27 @@ class User(Base, UserMixin):
     surname = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     password = Column(TEXT, nullable=False)
-    creation_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    registration_date = Column(DateTime, default=datetime.utcnow, nullable=False)
     confirmation_link = Column(String, nullable=False)
-    position = Column(String, nullable=False)
     access = Column(Integer, default=USER_ACCESS['user'], nullable=False)
     rating = Column(Integer, default=0, nullable=False)
     question_count = Column(Integer, default=0, nullable=False)
     article_count = Column(Integer, default=0, nullable=False)
     comment_count = Column(Integer, default=0, nullable=False)
+    # secondary info
+    position = Column(String, nullable=True)
 
     # todo: each function has lazy='dynamic'. doesn't look good
     posts = relationship('Post', lazy='dynamic')
     questions = relationship('Question', lazy='dynamic')
     articles = relationship('Article', lazy='dynamic')
     comments = relationship('Comment', lazy='dynamic')
-    voted_posts = relationship('DPostVotes', lazy='dynamic')
-    voted_comments = relationship('DCommentVotes', lazy='dynamic')
-    domains = relationship('DUserDomains', lazy='dynamic')
-    interests = relationship('DUserInterests', lazy='dynamic')
+    d_voted_posts = relationship('DPostVotes', lazy='dynamic')
+    d_voted_comments = relationship('DCommentVotes', lazy='dynamic')
+    d_domains = relationship('DUserDomains', lazy='dynamic')
+    d_interests = relationship('DUserInterests', lazy='dynamic')
     # certificates
     # warns
-
-    registration_schema = Schema({
-        'name': str,
-        'surname': str,
-        'password': str,
-        'email': str,
-        'position': str,
-    })
-    update_schema = Schema(And(
-        lambda x: x != {},
-        {
-            Optional('name'): str,
-            Optional('surname'): str,
-            Optional('email'): str,
-            Optional('position'): str
-        }
-    ))
 
     def get_id(self):
         return self.cookie_id
@@ -135,7 +121,7 @@ class User(Base, UserMixin):
                      if value == self.access][0],
             'position': self.position,
             'rating': self.rating,
-            'creation_date': self.creation_date.timestamp(),
+            'registration_date': self.registration_date.timestamp(),
             'question_count': self.question_count,
             'article_count': self.article_count,
             'comment_count': self.comment_count
@@ -153,8 +139,8 @@ class User(Base, UserMixin):
             return False
 
         if (q.only_chosen_domains and
-                len(set([i.d_id for i in self.domains.all()]) &
-                    set([i.d_id for i in q.domains.all()])) == 0):
+                len(set([i.d_id for i in self.d_domains.all()]) &
+                    set([i.d_id for i in q.d_domains.all()])) == 0):
             return False
 
         return True
@@ -184,10 +170,10 @@ class Post(Base):
     # edit_date = Column(DateTime)
     # files
 
-    author = relationship('User', lazy='subquery')
+    author = relationship('User', lazy='joined')
     comments = relationship('Comment', lazy='dynamic')
-    voted_users = relationship('DPostVotes', lazy='dynamic')
-    domains = relationship('DPostDomains', lazy='dynamic')
+    d_voted_users = relationship('DPostVotes', lazy='dynamic')
+    d_domains = relationship('DPostDomains', lazy='dynamic')
     # edited_by = relationship('User', foreign_keys='')
 
     __mapper_args__ = {
@@ -196,6 +182,14 @@ class Post(Base):
     }
 
     def as_dict(self):
+        domain_names, subdomain_names = [], []
+        for d in self.d_domains.all():
+            if d.imaginary is False:
+                if d.domain.parent_id is None:
+                    domain_names.append(d.domain.name)
+                else:
+                    subdomain_names.append(d.domain.name)
+
         return {
             'id': self.id,
             'u_id': self.u_id,
@@ -206,10 +200,8 @@ class Post(Base):
             'view_count': self.view_count,
             'score': self.score,
             'comment_count': self.comment_count,
-            'domains': [d.name for d in self.domains
-                .filter(DPostDomains.sub == False).all()],
-            'subdomains': [subd.name for subd in self.domains
-                .filter(DPostDomains.sub == True).all()]
+            'domains': domain_names,
+            'subdomains': subdomain_names
         }
 
 
@@ -217,14 +209,6 @@ class Question(Post):
     only_experts_answer = Column(Boolean, nullable=False)
     only_chosen_domains = Column(Boolean, nullable=False)
     closed = Column(Boolean, nullable=False)
-
-    schema = Schema({
-        'title': And(str, lambda s: 20 < len(s) <= 128),
-        'body': And(str, lambda s: 0 < len(s) <= 1024),
-        'only_experts_answer': bool,
-        'only_chosen_domains': bool,
-        'closed': bool
-    })
 
     __mapper_args__ = {
         'polymorphic_identity': 'question'
@@ -235,11 +219,6 @@ class Article(Post):
     __mapper_args__ = {
         'polymorphic_identity': 'article'
     }
-
-    schema = Schema({
-        'title': And(str, lambda s: 20 < len(s) <= 128),
-        'body': And(str, lambda s: 0 < len(s) <= 1024)
-    })
 
 
 class Comment(Base):
@@ -256,13 +235,9 @@ class Comment(Base):
     # visible
 
     # edited_by
-    author = relationship('User', lazy='subquery')
-    post = relationship('Post', lazy='subquery')
-    voted_users = relationship('DCommentVotes', lazy='dynamic')
-
-    # schema = Schema({
-    #     'text': And(str, lambda s: 20 < len(s) <= 250),
-    # })
+    author = relationship('User', lazy='joined')
+    post = relationship('Post', lazy='joined')
+    d_voted_users = relationship('DCommentVotes', lazy='dynamic')
 
     def as_dict(self):
         return {

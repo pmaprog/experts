@@ -2,8 +2,9 @@ from flask import abort
 from flask_login import current_user
 from sqlalchemy import or_
 
-from . import logger
-from .db import *
+from exproj import logger
+from exproj.db import *
+from exproj.validation import validate_domains
 
 
 def get_many(PostClass, u_id=None, closed=None, offset=None, limit=None):
@@ -58,10 +59,6 @@ def get(PostClass, p_id):
 def create(PostClass, data):
     u_id = current_user.id
 
-    PostClass.schema.validate(data)
-    if data['closed'] is True and not current_user.has_access('expert'):
-        abort(422, 'You cannot create closed questions')
-
     with get_session() as s:
         s.add(current_user)
         if PostClass == Question:
@@ -73,6 +70,7 @@ def create(PostClass, data):
             p = Article(u_id=u_id, title=data['title'], body=data['body'])
         s.add(p)
         s.commit()
+        _update_domains(p.id, data['domains'])
         # current_user.increment_count(PostClass)
 
         if PostClass == Question:
@@ -102,9 +100,22 @@ def delete(PostClass, p_id):
         p.status = 'deleted'
 
 
-def update(PostClass, p_id, new_data):
-    PostClass.schema.validate(new_data)
+def _update_domains(p_id, domain_ids):
+    with get_session() as s:
+        domains = s.query(Domain).filter(Domain.id.in_(domain_ids)) \
+            .order_by(Domain.id).all()
 
+        s.query(DPostDomains).filter(DPostDomains.p_id == p_id).delete()
+
+        for d in domains:
+            if (d.parent_id is not None and  # if its subdomain
+                    d.parent_id not in domain_ids):
+                s.add(DPostDomains(p_id=p_id, d_id=d.parent_id,
+                                   imaginary=True))
+            s.add(DPostDomains(p_id=p_id, d_id=d.id))
+
+
+def update(PostClass, p_id, new_data):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
 
@@ -113,7 +124,10 @@ def update(PostClass, p_id, new_data):
             abort(403)
 
         for param, value in new_data.items():
-            setattr(p, param, value)
+            if param == 'domains':
+                _update_domains(p_id, value)
+            else:
+                setattr(p, param, value)
 
         return p.as_dict()
 
@@ -143,6 +157,7 @@ def toggle_vote(PostClass, p_id, action):
         else:
             cur_vote = s.query(DPostVotes).get((u_id, p_id))
             new_vote = DPostVotes(u_id=u_id, p_id=p_id)
+
         if action == 'up':
             if cur_vote:
                 if cur_vote.upvoted:
@@ -204,13 +219,3 @@ def create_comment(PostClass, p_id, text):
         current_user.comment_count += 1
         s.commit()
         return comment.as_dict()
-
-
-def update_domains(PostClass, p_id, domains):
-    with get_session() as s:
-        p = PostClass.get_or_404(s, p_id)
-        # d = s.query(Domain).filter(Domain.id.in_(data['domains'])).all()
-        # subd = s.query(Domain).filter(Domain.id.in_(data['subdomains']),
-        #                               Domain.parent.isnot(None)).all()
-        for d in domains:
-            s.add(DPostDomains(p_id=p_id, d_id=d.id, sub=d.parent is not None))

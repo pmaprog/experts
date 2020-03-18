@@ -3,9 +3,9 @@ from flask_login import current_user
 from sqlalchemy import or_
 from schema import Schema, And, Optional, Use
 
-from . import logger
-from .db import get_session, USER_ACCESS
-from .db import User, Post, Question, Article, Comment, DPostVotes
+from exproj import logger
+from exproj.db import get_session, USER_ACCESS
+from exproj.db import User, Post, Question, Article, Comment, DPostVotes
 
 
 def get(c_id):

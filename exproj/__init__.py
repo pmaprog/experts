@@ -17,8 +17,8 @@ logger.addHandler(console_output_handler)
 logger.setLevel(logging.INFO)
 
 from . import config
-from .accounts_logic import user_loader
-from .restful_api import accounts, users, posts, comments
+from exproj.logic.accounts import user_loader
+from .rest_api import accounts, users, posts, comments
 
 def on_json_load_error(self, e):
     abort(415, 'Wrong json')
@@ -31,6 +31,8 @@ app.config.update(
     JSON_SORT_KEYS=False
 )
 
+from . import errors
+
 app.register_blueprint(accounts.bp)
 app.register_blueprint(users.bp)
 app.register_blueprint(posts.bp)
@@ -41,8 +43,6 @@ CORS(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.user_loader(user_loader)
-
-from . import errors
 
 
 def run_debug():

@@ -6,8 +6,9 @@ import uuid
 from flask import abort
 from flask_login import current_user
 
-from .db import get_session, User, USER_ACCESS
-from . import config, util
+from exproj import config, util
+from exproj.db import get_session, User, USER_ACCESS
+from exproj.validation import schemas
 
 
 def user_loader(cookie_id):
@@ -37,8 +38,6 @@ def pre_login(email, password):
 
 
 def register_user(data):
-    User.registration_schema.validate(data)
-
     with get_session() as s:
         user = s.query(User).filter(
             User.email == data['email']
@@ -111,7 +110,6 @@ def change_password(u_id, old_password, new_password):
         return u
 
 
-# todo: user can reset password of another user
 def reset_password(email):
     with get_session() as s:
         user = s.query(User).filter(
@@ -161,18 +159,8 @@ def ban_user(u_id):
 
 
 def update_role(u_id, role):
-    if role == 'superadmin' or role not in USER_ACCESS.keys():
-        abort(422, 'Unknown role')
-
     with get_session() as s:
         u = User.get_or_404(s, u_id)
-
-        if (not current_user.has_access('moderator') or
-                (not current_user.has_access('admin') and
-                 role == 'moderator') or
-                (not current_user.has_access('superadmin') and
-                 role == 'admin') or role == 'superadmin'):
-            abort(403)
 
         if u.access == USER_ACCESS[role]:
             abort(409, 'User already has that role')
