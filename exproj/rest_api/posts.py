@@ -11,12 +11,18 @@ bp = Blueprint('posts', __name__)
 
 @routes(bp, ['question', 'article'], '/all')
 def get_posts():
+    PostClass = get_post_class(request.path)
     args = request.args
+
     offset = args.get('offset')
     limit = args.get('limit')
     closed = args.get('closed')
-    PostClass = get_post_class(request.path)
-    posts = posts_logic.get_many(PostClass, None, closed, offset, limit)
+    tag_ids = (list(map(int, args['tags'].split(','))) if 'tags' in args
+               else None)
+
+    posts = posts_logic.get_many(PostClass, None, closed,
+                                 tag_ids, offset, limit)
+
     return jsonify(posts)
 
 
@@ -56,7 +62,8 @@ def update_post(p_id):
     PostClass = get_post_class(request.path)
     data = get_json()
     # schemas.post_update.validate(data)
-    validate_tags(data['tags'])
+    if 'tags' in data.keys():
+        validate_tags(data['tags'])
     posts_logic.update(PostClass, p_id, data)
     return make_ok(f'{PostClass.__name__} #{p_id} has been updated')
 

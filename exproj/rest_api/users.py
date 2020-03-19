@@ -5,6 +5,7 @@ from . import *
 from exproj.logic import users as users_logic
 from ..db import Question
 from ..util import get_post_class
+from exproj import validation
 from exproj.validation import schemas
 
 bp = Blueprint('users', __name__, url_prefix='/user')
@@ -28,6 +29,8 @@ def get_user(u_id):
 def update_user(u_id):
     data = get_json()
     schemas.user_update.validate(data)
+    if 'tags' in data.keys():
+        validation.validate_tags(data['tags'])
     users_logic.update(u_id, data)
     return make_ok(f'User with id #{u_id} has been updated')
 

@@ -2,23 +2,31 @@ from flask import abort
 from flask_login import current_user
 from sqlalchemy import or_
 
+from . import _update_tags
 from exproj import logger
 from exproj.db import *
 
 
-def get_many(PostClass, u_id=None, closed=None, offset=None, limit=None):
+def get_many(PostClass, u_id=None, closed=None,
+             tag_ids=None, offset=None, limit=None):
     with get_session() as s:
-        query = s.query(PostClass)\
-            .filter(PostClass.status == 'active')\
+        query = (
+            s.query(PostClass)
+            .filter(PostClass.status == 'active')
             .order_by(PostClass.creation_date.desc())
+        )
 
         if u_id:
             query = query.filter(PostClass.u_id == u_id)
 
+        if tag_ids:
+            query = query.filter(PostClass.tags.any(Tag.id.in_(tag_ids)))
+
         if PostClass == Question:
             if closed and closed != '0':
                 if PostClass != Question:
-                    abort(422, '`closed` parameter is not compatible with article')
+                    abort(422, '`closed` parameter is not '
+                               'compatible with article')
                 if not current_user.has_access('expert'):
                     abort(403, 'You can\'t view closed questions')
                 query = query.filter(Question.closed.is_(True))
@@ -60,6 +68,7 @@ def create(PostClass, data):
 
     with get_session() as s:
         s.add(current_user)
+
         if PostClass == Question:
             p = Question(u_id=u_id, title=data['title'], body=data['body'],
                          only_experts_answer=data['only_experts_answer'],
@@ -67,9 +76,13 @@ def create(PostClass, data):
                          closed=data['closed'])
         elif PostClass == Article:
             p = Article(u_id=u_id, title=data['title'], body=data['body'])
+
+        tags = s.query(Tag).filter(Tag.id.in_(data['tags'])).all()
+        for t in tags:
+            p.tags.append(t)
+
         s.add(p)
         s.commit()
-        _update_tags(p.id, data['tags'])
         # current_user.increment_count(PostClass)
 
         if PostClass == Question:
@@ -99,18 +112,6 @@ def delete(PostClass, p_id):
         p.status = 'deleted'
 
 
-def _update_tags(p_id, tag_ids):
-    with get_session() as s:
-        p = Post.get_or_404(s, p_id)
-        tags = s.query(Tag).filter(Tag.id.in_(tag_ids)).all()
-
-        for t in p.tags.all():
-            p.tags.remove(t)
-
-        for t in tags:
-            p.tags.append(t)
-
-
 def update(PostClass, p_id, new_data):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
@@ -121,7 +122,13 @@ def update(PostClass, p_id, new_data):
 
         for param, value in new_data.items():
             if param == 'tags':
-                _update_tags(p_id, value)
+                if not current_user.has_access('moderator'):
+                    abort(403, 'You cant change tags')
+                tags = s.query(Tag).filter(Tag.id.in_(value)).all()
+                for t in p.tags.all():
+                    p.tags.remove(t)
+                for t in tags:
+                    p.tags.append(t)
             else:
                 setattr(p, param, value)
 

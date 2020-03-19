@@ -29,6 +29,7 @@ app.config.update(
     CSRF_ENABLED=config.CSRF_ENABLED,
     SECRET_KEY=config.SECRET_KEY,
     JSON_SORT_KEYS=False,
+    SESSION_COOKIE_HTTPONLY=False,
     # SESSION_COOKIE_SAMESITE='Lax'
 )
 # CORS(app, supports_credentials=True, resources={r"*": {"origins": "*"}})

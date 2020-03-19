@@ -1,3 +1,4 @@
+from . import _update_tags
 from exproj.logic import posts as posts_logic
 from exproj.db import *
 
@@ -26,7 +27,16 @@ def update(u_id, new_data):
             abort(403)
 
         for param, value in new_data.items():
-            setattr(u, param, value)
+            if param == 'tags':
+                if not current_user.has_access('moderator'):
+                    abort(403, 'You cant change tags')
+                tags = s.query(Tag).filter(Tag.id.in_(value)).all()
+                for t in u.tags.all():
+                    u.tags.remove(t)
+                for t in tags:
+                    u.tags.append(t)
+            else:
+                setattr(u, param, value)
 
 
 # todo: offset, limit. Closed questions?

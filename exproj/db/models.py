@@ -131,6 +131,7 @@ class User(Base, UserMixin):
 
     def as_dict(self):
         return {
+            'id': self.id,
             'name': self.name,
             'surname': self.surname,
             'email': self.email,
@@ -154,13 +155,12 @@ class User(Base, UserMixin):
         if q.u_id == self.id:
             return True
 
-        if ((q.closed or q.only_experts_answer or q.only_chosen_domains) and
+        if ((q.closed or q.only_experts_answer or q.only_chosen_tags) and
                 not self.has_access('expert')):
             return False
 
-        if (q.only_chosen_domains and
-                len(set([i.d_id for i in self.d_domains.all()]) &
-                    set([i.d_id for i in q.d_domains.all()])) == 0):
+        if (q.only_chosen_tags and
+                len(set(self.tags.all()) & set(q.tags.all())) == 0):
             return False
 
         return True
@@ -219,7 +219,7 @@ class Post(Base):
 
 class Question(Post):
     only_experts_answer = Column(Boolean, nullable=False)
-    only_chosen_domains = Column(Boolean, nullable=False)
+    only_chosen_tags = Column(Boolean, nullable=False)
     closed = Column(Boolean, nullable=False)
 
     __mapper_args__ = {

@@ -7,8 +7,7 @@ from flask import abort
 from flask_login import current_user
 
 from exproj import config, util
-from exproj.db import get_session, User, USER_ACCESS
-from exproj.validation import schemas
+from exproj.db import *
 
 
 def user_loader(cookie_id):
