@@ -4,7 +4,6 @@ from sqlalchemy import or_
 
 from exproj import logger
 from exproj.db import *
-from exproj.validation import validate_domains
 
 
 def get_many(PostClass, u_id=None, closed=None, offset=None, limit=None):
@@ -70,7 +69,7 @@ def create(PostClass, data):
             p = Article(u_id=u_id, title=data['title'], body=data['body'])
         s.add(p)
         s.commit()
-        _update_domains(p.id, data['domains'])
+        _update_tags(p.id, data['tags'])
         # current_user.increment_count(PostClass)
 
         if PostClass == Question:
@@ -100,19 +99,16 @@ def delete(PostClass, p_id):
         p.status = 'deleted'
 
 
-def _update_domains(p_id, domain_ids):
+def _update_tags(p_id, tag_ids):
     with get_session() as s:
-        domains = s.query(Domain).filter(Domain.id.in_(domain_ids)) \
-            .order_by(Domain.id).all()
+        p = Post.get_or_404(s, p_id)
+        tags = s.query(Tag).filter(Tag.id.in_(tag_ids)).all()
 
-        s.query(DPostDomains).filter(DPostDomains.p_id == p_id).delete()
+        for t in p.tags.all():
+            p.tags.remove(t)
 
-        for d in domains:
-            if (d.parent_id is not None and  # if its subdomain
-                    d.parent_id not in domain_ids):
-                s.add(DPostDomains(p_id=p_id, d_id=d.parent_id,
-                                   imaginary=True))
-            s.add(DPostDomains(p_id=p_id, d_id=d.id))
+        for t in tags:
+            p.tags.append(t)
 
 
 def update(PostClass, p_id, new_data):
@@ -124,8 +120,8 @@ def update(PostClass, p_id, new_data):
             abort(403)
 
         for param, value in new_data.items():
-            if param == 'domains':
-                _update_domains(p_id, value)
+            if param == 'tags':
+                _update_tags(p_id, value)
             else:
                 setattr(p, param, value)
 

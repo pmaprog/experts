@@ -24,7 +24,7 @@ USER_ACCESS = {
 
 Account_status = ENUM('unconfirmed', 'active', 'deleted',
                       'banned', name='account_status')
-Post_status = ENUM('active', 'deleted', name='post_status')
+Post_status = ENUM('active', 'deleted', 'archived', name='post_status')
 
 
 class DPostVotes(Base):
@@ -43,36 +43,51 @@ class DCommentVotes(Base):
     upvoted = Column(Boolean, nullable=False)
 
 
-class DUserDomains(Base):
-    __tablename__ = 'd_user_domains'
-
-    u_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
-    d_id = Column(Integer, ForeignKey('domains.id'), primary_key=True)
-
-
-class DPostDomains(Base):
-    __tablename__ = 'd_post_domains'
-
-    p_id = Column(Integer, ForeignKey('posts.id'), primary_key=True)
-    d_id = Column(Integer, ForeignKey('domains.id'), primary_key=True)
-    imaginary = Column(Boolean, default=False, nullable=False)
-    domain = relationship('Domain', lazy='joined')
-
-
-# todo: may be change to table? it is not necessary to create whole class
-class DUserInterests(Base):
-    __tablename__ = 'd_user_interests'
-
-    u_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
-    d_id = Column(Integer, ForeignKey('domains.id'), primary_key=True)
-
-
-class Domain(Base):
-    __tablename__ = 'domains'
+class Tag(Base):
+    __tablename__ = 'tags'
 
     id = Column(Integer, primary_key=True)
-    parent_id = Column(Integer, ForeignKey('domains.id'))
-    name = Column(String, nullable=False)  # todo: unique?
+    name = Column(String, unique=True, nullable=False)
+
+
+# class DPostTags(Base):
+#     __tablename__ = 'd_post_tags'
+#
+#     p_id = Column(Integer, ForeignKey('posts.id'), primary_key=True)
+#     t_id = Column(Integer, ForeignKey('tags.id'), primary_key=True)
+#     # tag = relationship('Tag', lazy='joined')
+
+
+# class DUserTags(Base):
+#     __tablename__ = 'd_user_tags'
+#
+#     u_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
+#     t_id = Column(Integer, ForeignKey('tags.id'), primary_key=True)
+#     # domain = relationship('Domain', lazy='joined')
+
+
+post_tags = Table(
+    'd_post_tags',
+    Base.metadata,
+    Column('p_id', Integer, ForeignKey('posts.id'), primary_key=True),
+    Column('t_id', Integer, ForeignKey('tags.id'), primary_key=True)
+)
+
+
+user_tags = Table(
+    'd_user_tags',
+    Base.metadata,
+    Column('u_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('t_id', Integer, ForeignKey('tags.id'), primary_key=True)
+)
+
+
+user_interests = Table(
+    'd_user_interests',
+    Base.metadata,
+    Column('u_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('t_id', Integer, ForeignKey('tags.id'), primary_key=True)
+)
 
 
 class User(Base, UserMixin):
@@ -104,8 +119,10 @@ class User(Base, UserMixin):
     comments = relationship('Comment', lazy='dynamic')
     d_voted_posts = relationship('DPostVotes', lazy='dynamic')
     d_voted_comments = relationship('DCommentVotes', lazy='dynamic')
-    d_domains = relationship('DUserDomains', lazy='dynamic')
-    d_interests = relationship('DUserInterests', lazy='dynamic')
+    tags = relationship('Tag', secondary=user_tags, lazy='dynamic')
+    interests = relationship('Tag', secondary=user_interests, lazy='dynamic')
+    # d_tags = relationship('DUserTags', lazy='dynamic')
+    # d_interests = relationship('DUserInterests', lazy='dynamic')
     # certificates
     # warns
 
@@ -119,6 +136,8 @@ class User(Base, UserMixin):
             'email': self.email,
             'role': [key for key, value in USER_ACCESS.items()
                      if value == self.access][0],
+            'tags': [t.name for t in self.tags.all()],
+            'interests': [t.name for t in self.interests.all()],
             'position': self.position,
             'rating': self.rating,
             'registration_date': self.registration_date.timestamp(),
@@ -130,6 +149,7 @@ class User(Base, UserMixin):
     def has_access(self, access):
         return self.access >= USER_ACCESS[access]
 
+    # todo
     def can_answer(self, q):
         if q.u_id == self.id:
             return True
@@ -173,7 +193,8 @@ class Post(Base):
     author = relationship('User', lazy='joined')
     comments = relationship('Comment', lazy='dynamic')
     d_voted_users = relationship('DPostVotes', lazy='dynamic')
-    d_domains = relationship('DPostDomains', lazy='dynamic')
+    tags = relationship('Tag', secondary=post_tags, lazy='dynamic')
+    # d_domains = relationship('DPostDomains', lazy='dynamic')
     # edited_by = relationship('User', foreign_keys='')
 
     __mapper_args__ = {
@@ -182,14 +203,6 @@ class Post(Base):
     }
 
     def as_dict(self):
-        domain_names, subdomain_names = [], []
-        for d in self.d_domains.all():
-            if d.imaginary is False:
-                if d.domain.parent_id is None:
-                    domain_names.append(d.domain.name)
-                else:
-                    subdomain_names.append(d.domain.name)
-
         return {
             'id': self.id,
             'u_id': self.u_id,
@@ -197,11 +210,10 @@ class Post(Base):
             'title': self.title,
             'body': self.body,
             'creation_date': self.creation_date.timestamp(),
-            'view_count': self.view_count,
             'score': self.score,
+            'view_count': self.view_count,
             'comment_count': self.comment_count,
-            'domains': domain_names,
-            'subdomains': subdomain_names
+            'tags': [t.name for t in self.tags.all()],
         }
 
 

@@ -1,10 +1,10 @@
 from exproj.db import *
 
 
-def validate_domains(domain_ids):
+def validate_tags(tag_ids):
     with get_session() as s:
-        domains = s.query(Domain).filter(Domain.id.in_(domain_ids)) \
-            .order_by(Domain.id).all()
+        tags = s.query(Tag).filter(Tag.id.in_(tag_ids)) \
+            .order_by(Tag.id).all()
 
-        if [d.id for d in domains] != sorted(domain_ids):
-            abort(422, 'Wrong domain ids')
+        if [t.id for t in tags] != sorted(tag_ids):
+            abort(422, 'Wrong tag ids')

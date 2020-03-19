@@ -28,8 +28,12 @@ app = Flask(__name__)
 app.config.update(
     CSRF_ENABLED=config.CSRF_ENABLED,
     SECRET_KEY=config.SECRET_KEY,
-    JSON_SORT_KEYS=False
+    JSON_SORT_KEYS=False,
+    # SESSION_COOKIE_SAMESITE='Lax'
 )
+# CORS(app, supports_credentials=True, resources={r"*": {"origins": "*"}})
+CORS(app)
+
 
 from . import errors
 
@@ -38,12 +42,10 @@ app.register_blueprint(users.bp)
 app.register_blueprint(posts.bp)
 app.register_blueprint(comments.bp)
 
-CORS(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.user_loader(user_loader)
-
 
 def run_debug():
     logger.setLevel(logging.DEBUG)

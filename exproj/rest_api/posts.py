@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from . import *
 from ..util import get_post_class, routes
 from exproj.logic import posts as posts_logic
-from exproj.validation import validate_domains, schemas
+from exproj.validation import validate_tags, schemas
 
 bp = Blueprint('posts', __name__)
 
@@ -29,7 +29,7 @@ def create_post():
     if data['closed'] is True and not current_user.has_access('expert'):
         abort(422, 'You cannot create closed questions')
     schemas.question.validate(data)
-    validate_domains(data['domains'])
+    validate_tags(data['tags'])
 
     p_id = posts_logic.create(PostClass, data)
     return make_ok(f'{PostClass.__name__} #{p_id} successfully created'), 201
@@ -56,7 +56,7 @@ def update_post(p_id):
     PostClass = get_post_class(request.path)
     data = get_json()
     # schemas.post_update.validate(data)
-    validate_domains(data['domains'])
+    validate_tags(data['tags'])
     posts_logic.update(PostClass, p_id, data)
     return make_ok(f'{PostClass.__name__} #{p_id} has been updated')
 

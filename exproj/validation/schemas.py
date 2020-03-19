@@ -24,7 +24,7 @@ question = Schema({
     'only_experts_answer': bool,
     'only_chosen_domains': bool,
     'closed': bool,
-    'domains': [int]
+    'tags': [int]
 })
 
 article = Schema({
