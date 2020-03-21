@@ -32,9 +32,9 @@ def create_post():
     PostClass = get_post_class(request.path)
     data = get_json()
 
+    schemas.question.validate(data)
     if data['closed'] is True and not current_user.has_access('expert'):
         abort(422, 'You cannot create closed questions')
-    schemas.question.validate(data)
     validate_tags(data['tags'])
 
     p_id = posts_logic.create(PostClass, data)

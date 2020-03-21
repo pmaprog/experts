@@ -2,7 +2,7 @@ from flask import abort
 from flask_login import current_user
 from sqlalchemy import or_
 
-from . import _update_tags
+# from . import _update_tags
 from exproj import logger
 from exproj.db import *
 
@@ -25,10 +25,12 @@ def get_many(PostClass, u_id=None, closed=None,
         if PostClass == Question:
             if closed and closed != '0':
                 if PostClass != Question:
-                    abort(422, '`closed` parameter is not '
-                               'compatible with article')
+                    abort(422, '`closed` parameter is'
+                               ' available only for questions')
+
                 if not current_user.has_access('expert'):
                     abort(403, 'You can\'t view closed questions')
+
                 query = query.filter(Question.closed.is_(True))
             else:
                 query = query.filter(Question.closed.is_(False))
@@ -38,12 +40,12 @@ def get_many(PostClass, u_id=None, closed=None,
                 offset = int(offset)
                 limit = int(limit)
             except:
-                abort(422, 'query parameters '
-                           '`offset` and `limit` should be numbers')
+                abort(422, 'query parameters'
+                           ' `offset` and `limit` should be numbers')
 
             if offset < 0 or limit < 1:
-                abort(422, 'query parameters '
-                           '`offset` or `limit` has wrong values')
+                abort(422, 'query parameters'
+                           ' `offset` or `limit` has wrong values')
 
             data = query.slice(offset, offset + limit)
         else:
@@ -72,7 +74,7 @@ def create(PostClass, data):
         if PostClass == Question:
             p = Question(u_id=u_id, title=data['title'], body=data['body'],
                          only_experts_answer=data['only_experts_answer'],
-                         only_chosen_domains=data['only_chosen_domains'],
+                         only_chosen_tags=data['only_chosen_tags'],
                          closed=data['closed'])
         elif PostClass == Article:
             p = Article(u_id=u_id, title=data['title'], body=data['body'])
@@ -214,7 +216,8 @@ def create_comment(PostClass, p_id, text):
         p = PostClass.get_or_404(s, p_id)
 
         if PostClass == Question and not current_user.can_answer(p):
-            abort(403, 'You must be an expert to answer the question')
+            abort(403, 'You cant create answer because you are not an expert or'
+                       ' do not have expert status in the areas of question')
 
         comment = Comment(u_id=u_id, p_id=p_id, text=text)
         p.comments.append(comment)

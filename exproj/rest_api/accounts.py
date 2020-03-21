@@ -10,6 +10,22 @@ from exproj.validation import schemas
 bp = Blueprint('accounts', __name__)
 
 
+@bp.route('/login_status')
+def is_logged_in():
+    is_auth = current_user.is_authenticated
+
+    status = dict(is_logged_in=is_auth)
+    if is_auth:
+        status['info'] = {
+            'id': current_user.id,
+            'name': current_user.name,
+            'surname': current_user.surname,
+            'email': current_user.email
+        }
+
+    return jsonify(status)
+
+
 @bp.route('/login', methods=['POST'])
 def login():
     if current_user.is_authenticated:
