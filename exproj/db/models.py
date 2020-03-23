@@ -27,6 +27,30 @@ Account_status = ENUM('unconfirmed', 'active', 'deleted',
 Post_status = ENUM('active', 'deleted', 'archived', name='post_status')
 
 
+d_post_tags = Table(
+    'd_post_tags',
+    Base.metadata,
+    Column('p_id', Integer, ForeignKey('posts.id'), primary_key=True),
+    Column('t_id', Integer, ForeignKey('tags.id'), primary_key=True)
+)
+
+
+d_user_tags = Table(
+    'd_user_tags',
+    Base.metadata,
+    Column('u_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('t_id', Integer, ForeignKey('tags.id'), primary_key=True)
+)
+
+
+d_user_interests = Table(
+    'd_user_interests',
+    Base.metadata,
+    Column('u_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('t_id', Integer, ForeignKey('tags.id'), primary_key=True)
+)
+
+
 class DPostVotes(Base):
     __tablename__ = 'd_post_votes'
 
@@ -49,45 +73,16 @@ class Tag(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True, nullable=False)
 
+    users_interests = relationship('User', secondary=d_user_interests,
+                                   lazy='dynamic')
+    users_tags = relationship('User', secondary=d_user_tags, lazy='dynamic')
+    posts = relationship('Post', secondary=d_post_tags, lazy='dynamic')
 
-# class DPostTags(Base):
-#     __tablename__ = 'd_post_tags'
-#
-#     p_id = Column(Integer, ForeignKey('posts.id'), primary_key=True)
-#     t_id = Column(Integer, ForeignKey('tags.id'), primary_key=True)
-#     # tag = relationship('Tag', lazy='joined')
-
-
-# class DUserTags(Base):
-#     __tablename__ = 'd_user_tags'
-#
-#     u_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
-#     t_id = Column(Integer, ForeignKey('tags.id'), primary_key=True)
-#     # domain = relationship('Domain', lazy='joined')
-
-
-post_tags = Table(
-    'd_post_tags',
-    Base.metadata,
-    Column('p_id', Integer, ForeignKey('posts.id'), primary_key=True),
-    Column('t_id', Integer, ForeignKey('tags.id'), primary_key=True)
-)
-
-
-user_tags = Table(
-    'd_user_tags',
-    Base.metadata,
-    Column('u_id', Integer, ForeignKey('users.id'), primary_key=True),
-    Column('t_id', Integer, ForeignKey('tags.id'), primary_key=True)
-)
-
-
-user_interests = Table(
-    'd_user_interests',
-    Base.metadata,
-    Column('u_id', Integer, ForeignKey('users.id'), primary_key=True),
-    Column('t_id', Integer, ForeignKey('tags.id'), primary_key=True)
-)
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name
+        }
 
 
 class User(Base, UserMixin):
@@ -102,7 +97,8 @@ class User(Base, UserMixin):
     surname = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     password = Column(TEXT, nullable=False)
-    registration_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    registration_date = Column(DateTime, default=datetime.utcnow,
+                               nullable=False)
     confirmation_link = Column(String, nullable=False)
     access = Column(Integer, default=USER_ACCESS['user'], nullable=False)
     rating = Column(Integer, default=0, nullable=False)
@@ -119,10 +115,8 @@ class User(Base, UserMixin):
     comments = relationship('Comment', lazy='dynamic')
     d_voted_posts = relationship('DPostVotes', lazy='dynamic')
     d_voted_comments = relationship('DCommentVotes', lazy='dynamic')
-    tags = relationship('Tag', secondary=user_tags, lazy='dynamic')
-    interests = relationship('Tag', secondary=user_interests, lazy='dynamic')
-    # d_tags = relationship('DUserTags', lazy='dynamic')
-    # d_interests = relationship('DUserInterests', lazy='dynamic')
+    tags = relationship('Tag', secondary=d_user_tags, lazy='dynamic')
+    interests = relationship('Tag', secondary=d_user_interests, lazy='dynamic')
     # certificates
     # warns
 
@@ -142,6 +136,7 @@ class User(Base, UserMixin):
             'position': self.position,
             'rating': self.rating,
             'registration_date': self.registration_date.timestamp(),
+            'status': self.status,
             'question_count': self.question_count,
             'article_count': self.article_count,
             'comment_count': self.comment_count
@@ -164,14 +159,6 @@ class User(Base, UserMixin):
 
         return True
 
-    # def increment_count(self, cls):
-    #     if cls == Question:
-    #         self.question_count += 1
-    #     if cls == Article:
-    #         self.article_count += 1
-    #     if cls == Comment:
-    #         self.comment_count += 1
-
 
 class Post(Base):
     __tablename__ = 'posts'
@@ -186,14 +173,13 @@ class Post(Base):
     comment_count = Column(Integer, default=0, nullable=False)
     score = Column(Integer, default=0, nullable=False)
     status = Column(Post_status, default='active', nullable=False)
-    # edit_date = Column(DateTime)
+    # last_edit_date = Column(DateTime)
     # files
 
     author = relationship('User', lazy='joined')
     comments = relationship('Comment', lazy='dynamic')
     d_voted_users = relationship('DPostVotes', lazy='dynamic')
-    tags = relationship('Tag', secondary=post_tags, lazy='dynamic')
-    # d_domains = relationship('DPostDomains', lazy='dynamic')
+    tags = relationship('Tag', secondary=d_post_tags, lazy='dynamic')
     # edited_by = relationship('User', foreign_keys='')
 
     __mapper_args__ = {
@@ -209,6 +195,7 @@ class Post(Base):
             'title': self.title,
             'body': self.body,
             'creation_date': self.creation_date.timestamp(),
+            'status': self.status,
             'score': self.score,
             'view_count': self.view_count,
             'comment_count': self.comment_count,
@@ -217,9 +204,9 @@ class Post(Base):
 
 
 class Question(Post):
-    closed = Column(Boolean, nullable=False)
-    only_experts_answer = Column(Boolean, nullable=False)
-    only_chosen_tags = Column(Boolean, nullable=False)
+    closed = Column(Boolean)
+    only_experts_answer = Column(Boolean)
+    only_chosen_tags = Column(Boolean)
 
     __mapper_args__ = {
         'polymorphic_identity': 'question'
@@ -251,7 +238,7 @@ class Comment(Base):
     text = Column(String, nullable=False)
     score = Column(Integer, default=0, nullable=False)
     status = Column(String, default='active', nullable=False)
-    # edit_time
+    # last_edit_date
     # visible
 
     # edited_by
@@ -265,7 +252,8 @@ class Comment(Base):
             'p_id': self.p_id,
             'u_id': self.u_id,
             'email': self.author.email,
-            'text': self.text,
+            'text': self.text if self.status == 'active' else None,
+            'status': self.status,
             'creation_date': self.creation_date.timestamp(),
             'score': self.score,
         }

@@ -150,10 +150,13 @@ def self_delete(u_id, password):
 def ban_user(u_id):
     with get_session() as s:
         u = User.get_or_404(s, u_id)
+
         if not current_user.has_access('moderator'):
             abort(403)
+
         if u.status == 'banned':
             abort(409, 'User has already banned')
+
         u.status = 'banned'
 
 

@@ -15,7 +15,7 @@ class _Base:
     @classmethod
     def get_or_404(cls, s, id_):
         obj = s.query(cls).get(id_)
-        if obj and obj.status == 'active':
+        if obj and (not hasattr(obj, 'status') or obj.status == 'active'):
             return obj
         abort(404, f'{cls.__name__} with id #{id_} not found')
 

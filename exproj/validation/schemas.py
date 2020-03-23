@@ -15,7 +15,8 @@ user_update = Schema(And(
         Optional('surname'): str,
         Optional('email'): str,
         Optional('position'): str,
-        Optional('tags'): [int]
+        Optional('tags'): [int],
+        Optional('interests'): [int]
     }
 ))
 
@@ -30,7 +31,8 @@ question = Schema({
 
 article = Schema({
     'title': And(str, lambda s: 20 < len(s) <= 128),
-    'body': And(str, lambda s: 0 < len(s) <= 1024)
+    'body': And(str, lambda s: 0 < len(s) <= 1024),
+    'tags': [int]
 })
 
 # comment = Schema({

@@ -18,7 +18,7 @@ logger.setLevel(logging.INFO)
 
 from . import config
 from exproj.logic.accounts import user_loader
-from .rest_api import accounts, users, posts, comments
+from .rest_api import accounts, users, posts, comments, tags
 
 def on_json_load_error(self, e):
     abort(415, 'Wrong json')
@@ -49,6 +49,7 @@ app.register_blueprint(accounts.bp)
 app.register_blueprint(users.bp)
 app.register_blueprint(posts.bp)
 app.register_blueprint(comments.bp)
+app.register_blueprint(tags.bp)
 
 
 login_manager = LoginManager()

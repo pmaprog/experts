@@ -2,7 +2,6 @@ from flask import abort
 from flask_login import current_user
 from sqlalchemy import or_
 
-# from . import _update_tags
 from exproj import logger
 from exproj.db import *
 
@@ -59,7 +58,9 @@ def get(PostClass, p_id):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
 
-        if p.closed and not current_user.has_access('expert'):
+        if (PostClass == Question and p.closed
+                and not current_user.has_access('expert')
+                and not p.u_id != current_user.id):
             abort(403)
 
         return p.as_dict()
@@ -79,13 +80,10 @@ def create(PostClass, data):
         elif PostClass == Article:
             p = Article(u_id=u_id, title=data['title'], body=data['body'])
 
-        tags = s.query(Tag).filter(Tag.id.in_(data['tags'])).all()
-        for t in tags:
-            p.tags.append(t)
+        p.tags = s.query(Tag).filter(Tag.id.in_(data['tags'])).all()
 
         s.add(p)
         s.commit()
-        # current_user.increment_count(PostClass)
 
         if PostClass == Question:
             current_user.question_count += 1
@@ -101,8 +99,8 @@ def delete(PostClass, p_id):
 
         p = PostClass.get_or_404(s, p_id)
 
-        if (not current_user.has_access('moderator') and
-                p.u_id != current_user.id):
+        if (not current_user.has_access('moderator')
+                and p.u_id != current_user.id):
             abort(403)
 
         if PostClass == Question:
@@ -110,7 +108,10 @@ def delete(PostClass, p_id):
         elif PostClass == Article:
             current_user.article_count -= 1
 
-        # todo: decrease comment_count for all users who comment to the post
+        for comment in p.comments.all():
+            comment.author.comment_count -= 1
+            comment.status = 'deleted'
+
         p.status = 'deleted'
 
 
@@ -118,19 +119,13 @@ def update(PostClass, p_id, new_data):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
 
-        if (not current_user.has_access('moderator') and
-                p.u_id != current_user.id):
+        if (not current_user.has_access('moderator')
+                and p.u_id != current_user.id):
             abort(403)
 
         for param, value in new_data.items():
             if param == 'tags':
-                if not current_user.has_access('moderator'):
-                    abort(403, 'You cant change tags')
-                tags = s.query(Tag).filter(Tag.id.in_(value)).all()
-                for t in p.tags.all():
-                    p.tags.remove(t)
-                for t in tags:
-                    p.tags.append(t)
+                p.tags = s.query(Tag).filter(Tag.id.in_(value)).all()
             else:
                 setattr(p, param, value)
 
@@ -149,13 +144,13 @@ def toggle_vote(PostClass, p_id, action):
 
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
-        if (PostClass == Question and
-                p.closed and not current_user.has_access('expert')):
+        if (PostClass == Question and p.closed
+                and not current_user.has_access('expert')):
             abort(403)
 
         if PostClass == Comment:
-            if (isinstance(p.post, Question) and
-                    p.closed and not current_user.has_access('expert')):
+            if (isinstance(p.post, Question) and p.post.closed
+                    and not current_user.has_access('expert')):
                 abort(403)
             cur_vote = s.query(DCommentVotes).get((u_id, p_id))
             new_vote = DCommentVotes(u_id=u_id, c_id=p_id)
@@ -199,7 +194,8 @@ def get_post_comments(PostClass, p_id):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
 
-        if p.closed and not current_user.has_access('expert'):
+        if (PostClass == Question and p.closed
+                and not current_user.has_access('expert')):
             abort(403, 'You must be an expert')
 
         comments = [c.as_dict() for c in p.comments
@@ -223,5 +219,3 @@ def create_comment(PostClass, p_id, text):
         p.comments.append(comment)
         p.comment_count += 1
         current_user.comment_count += 1
-        s.commit()
-        return comment.as_dict()

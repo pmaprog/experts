@@ -29,6 +29,8 @@ def update_user(u_id):
     schemas.user_update.validate(data)
     if 'tags' in data.keys():
         validation.validate_tags(data['tags'])
+    if 'interests' in data.keys():
+        validation.validate_tags(data['interests'])
     users_logic.update(u_id, data)
     return make_ok(f'User with id #{u_id} has been updated')
 

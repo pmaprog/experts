@@ -11,7 +11,7 @@ bp = Blueprint('accounts', __name__)
 
 
 @bp.route('/login_status')
-def is_logged_in():
+def login_status():
     is_auth = current_user.is_authenticated
 
     status = dict(is_logged_in=is_auth)

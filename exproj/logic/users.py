@@ -30,18 +30,8 @@ def update(u_id, new_data):
             if param == 'tags':
                 if not current_user.has_access('moderator'):
                     abort(403, 'You cant change tags')
-                tags = s.query(Tag).filter(Tag.id.in_(value)).all()
-                for t in u.tags.all():
-                    u.tags.remove(t)
-                for t in tags:
-                    u.tags.append(t)
+                u.tags = s.query(Tag).filter(Tag.id.in_(value)).all()
+            elif param == 'interests':
+                u.interests = s.query(Tag).filter(Tag.id.in_(value)).all()
             else:
                 setattr(u, param, value)
-
-
-# def get_posts(PostClass, u_id, closed):
-#     with get_session() as s:
-#         User.get_or_404(s, u_id)  # is user exists
-#
-#         posts = posts_logic.get_many(PostClass, u_id, closed)
-#         return posts

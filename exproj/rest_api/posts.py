@@ -2,7 +2,8 @@ from flask import Blueprint
 from flask_login import login_required, current_user
 
 from . import *
-from ..util import get_post_class, routes
+from exproj.db import *
+from exproj.util import get_post_class, routes
 from exproj.logic import posts as posts_logic
 from exproj.validation import validate_tags, schemas
 
@@ -32,9 +33,13 @@ def create_post():
     PostClass = get_post_class(request.path)
     data = get_json()
 
-    schemas.question.validate(data)
-    if data['closed'] is True and not current_user.has_access('expert'):
-        abort(422, 'You cannot create closed questions')
+    if PostClass == Question:
+        schemas.question.validate(data)
+        if data['closed'] is True and not current_user.has_access('expert'):
+            abort(422, 'You cannot create closed questions')
+    elif PostClass == Article:
+        schemas.article.validate(data)
+
     validate_tags(data['tags'])
 
     p_id = posts_logic.create(PostClass, data)
@@ -82,17 +87,21 @@ def increase_post_views(p_id):
 @login_required
 def vote_post(p_id):
     PostClass = get_post_class(request.path)
+
     action = ('up'
               if request.path[request.path.rfind('/') + 1:] == 'toggle_upvote'
               else 'down')
+
     result = posts_logic.toggle_vote(PostClass, p_id, action)
+
     if result == 'deleted':
         message = 'Successfully deleted vote '\
                   f'for {PostClass.__name__.lower()} #{p_id}'
     else:
         message = f'Successfully {action}voted '\
                   f'{PostClass.__name__.lower()} #{p_id}'
-    return jsonify(message)
+
+    return make_ok(message)
 
 
 @routes(bp, ['question', 'article'], '/<int:p_id>/comments')
