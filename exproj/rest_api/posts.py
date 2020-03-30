@@ -107,7 +107,10 @@ def vote_post(p_id):
 @routes(bp, ['question', 'article'], '/<int:p_id>/comments')
 def get_post_comments(p_id):
     PostClass = get_post_class(request.path)
-    comments = posts_logic.get_post_comments(PostClass, p_id)
+    args = request.args
+    offset = args.get('offset')
+    limit = args.get('limit')
+    comments = posts_logic.get_post_comments(PostClass, p_id, offset, limit)
     return jsonify(comments)
 
 

@@ -1,12 +1,17 @@
-# from . import _update_tags
-from exproj.logic import posts as posts_logic
+from . import _slice
 from exproj.db import *
 
 
-def get_many():
+def get_many(offset=None, limit=None):
     with get_session() as s:
-        users = s.query(User).all()
-        return [u.as_dict() for u in users]
+        query = s.query(User).order_by(User.registration_date.desc())
+
+        if offset and limit:
+            data = _slice(query, offset, limit)
+        else:
+            data = query.all()
+
+        return [u.as_dict() for u in data]
 
 
 def get(u_id):

@@ -2,6 +2,7 @@ from flask import abort
 from flask_login import current_user
 from sqlalchemy import or_
 
+from . import _slice
 from exproj import logger
 from exproj.db import *
 
@@ -27,7 +28,8 @@ def get_many(PostClass, u_id=None, closed=None,
                     abort(422, '`closed` parameter is'
                                ' available only for questions')
 
-                if not current_user.has_access('expert'):
+                if (not current_user.is_authenticated or
+                        not current_user.has_access('expert')):
                     abort(403, 'You can\'t view closed questions')
 
                 query = query.filter(Question.closed.is_(True))
@@ -35,18 +37,7 @@ def get_many(PostClass, u_id=None, closed=None,
                 query = query.filter(Question.closed.is_(False))
 
         if offset and limit:
-            try:
-                offset = int(offset)
-                limit = int(limit)
-            except:
-                abort(422, 'query parameters'
-                           ' `offset` and `limit` should be numbers')
-
-            if offset < 0 or limit < 1:
-                abort(422, 'query parameters'
-                           ' `offset` or `limit` has wrong values')
-
-            data = query.slice(offset, offset + limit)
+            data = _slice(query, offset, limit)
         else:
             data = query.all()
 
@@ -59,7 +50,8 @@ def get(PostClass, p_id):
         p = PostClass.get_or_404(s, p_id)
 
         if (PostClass == Question and p.closed
-                and not current_user.has_access('expert')
+                and (not current_user.is_authenticated
+                     or not current_user.has_access('expert'))
                 and not p.u_id != current_user.id):
             abort(403)
 
@@ -190,17 +182,28 @@ def toggle_vote(PostClass, p_id, action):
             raise ValueError('Action should be only `up` or `down`')
 
 
-def get_post_comments(PostClass, p_id):
+def get_post_comments(PostClass, p_id, offset=None, limit=None):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
 
-        if (PostClass == Question and p.closed
-                and not current_user.has_access('expert')):
+        if (PostClass == Question and p.closed and
+                (not current_user.is_authenticated
+                    or not current_user.has_access('expert'))):
             abort(403, 'You must be an expert')
 
-        comments = [c.as_dict() for c in p.comments
-                    .filter(Comment.status == 'active')
-                    .order_by(Comment.creation_date.desc()).all()]
+        query = (
+            p.comments
+            .filter(Comment.status == 'active')
+            .order_by(Comment.creation_date.desc())
+        )
+
+        if offset and limit:
+            data = _slice(query, offset, limit)
+        else:
+            data = query.all()
+
+        comments = [c.as_dict() for c in data]
+
         return comments
 
 

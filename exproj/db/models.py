@@ -91,22 +91,25 @@ class User(Base, UserMixin):
     id = Column(Integer, primary_key=True)
     cookie_id = Column(UUID(as_uuid=True), default=uuid.uuid4,
                        unique=True, nullable=False)
-    status = Column(Account_status, default=config.DEFAULT_USER_STATUS,
-                    nullable=False)
     name = Column(String, nullable=False)
     surname = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     password = Column(TEXT, nullable=False)
-    registration_date = Column(DateTime, default=datetime.utcnow,
-                               nullable=False)
     confirmation_link = Column(String, nullable=False)
     access = Column(Integer, default=USER_ACCESS['user'], nullable=False)
+    status = Column(Account_status, default=config.DEFAULT_USER_STATUS,
+                    nullable=False)
+
+    # secondary info
+    position = Column(String, nullable=True)
+
+    # statistic
     rating = Column(Integer, default=0, nullable=False)
     question_count = Column(Integer, default=0, nullable=False)
     article_count = Column(Integer, default=0, nullable=False)
     comment_count = Column(Integer, default=0, nullable=False)
-    # secondary info
-    position = Column(String, nullable=True)
+    registration_date = Column(DateTime, default=datetime.utcnow,
+                               nullable=False)
 
     # todo: each function has lazy='dynamic'. doesn't look good
     posts = relationship('Post', lazy='dynamic')
@@ -251,6 +254,7 @@ class Comment(Base):
             'id': self.id,
             'p_id': self.p_id,
             'u_id': self.u_id,
+            'post_type': self.post.type,
             'email': self.author.email,
             'text': self.text if self.status == 'active' else None,
             'status': self.status,

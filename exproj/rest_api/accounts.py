@@ -71,8 +71,8 @@ def change_password():
     data = get_json()
 
     user = accounts_logic.change_password(current_user.id,
-                                    data['old_password'],
-                                    data['new_password'])
+                                          data['old_password'],
+                                          data['new_password'])
     login_user(user)
     return make_ok('Password has beed changed')
 

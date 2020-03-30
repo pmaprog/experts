@@ -12,7 +12,10 @@ bp = Blueprint('users', __name__, url_prefix='/user')
 
 @bp.route('/all')
 def get_users():
-    users = users_logic.get_many()
+    offset = request.args.get('offset')
+    limit = request.args.get('limit')
+
+    users = users_logic.get_many(offset, limit)
     return jsonify(users)
 
 
@@ -42,6 +45,9 @@ def get_user_posts(u_id):
     PostClass = get_post_class(request.path)
 
     closed = request.args.get('closed')
+    offset = request.args.get('offset')
+    limit = request.args.get('limit')
 
-    posts = posts_logic.get_many(PostClass, u_id, closed)
+    posts = posts_logic.get_many(PostClass, u_id, closed,
+                                 offset=offset, limit=limit)
     return jsonify(posts)
