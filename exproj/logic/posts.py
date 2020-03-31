@@ -8,7 +8,7 @@ from exproj.db import *
 
 
 def get_many(PostClass, u_id=None, closed=None,
-             tag_ids=None, offset=None, limit=None):
+             tags=None, offset=None, limit=None):
     with get_session() as s:
         query = (
             s.query(PostClass)
@@ -19,8 +19,8 @@ def get_many(PostClass, u_id=None, closed=None,
         if u_id:
             query = query.filter(PostClass.u_id == u_id)
 
-        if tag_ids:
-            query = query.filter(PostClass.tags.any(Tag.id.in_(tag_ids)))
+        if tags:
+            query = query.filter(PostClass.tags.any(Tag.name.in_(tags)))
 
         if PostClass == Question:
             if closed and closed != '0':
@@ -72,7 +72,7 @@ def create(PostClass, data):
         elif PostClass == Article:
             p = Article(u_id=u_id, title=data['title'], body=data['body'])
 
-        p.tags = s.query(Tag).filter(Tag.id.in_(data['tags'])).all()
+        p.tags = s.query(Tag).filter(Tag.name.in_(data['tags'])).all()
 
         s.add(p)
         s.commit()
@@ -117,7 +117,7 @@ def update(PostClass, p_id, new_data):
 
         for param, value in new_data.items():
             if param == 'tags':
-                p.tags = s.query(Tag).filter(Tag.id.in_(value)).all()
+                p.tags = s.query(Tag).filter(Tag.name.in_(value)).all()
             else:
                 setattr(p, param, value)
 

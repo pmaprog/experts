@@ -1,10 +1,9 @@
 from exproj.db import *
 
 
-def validate_tags(tag_ids):
+def validate_tags(tag_names):
     with get_session() as s:
-        tags = s.query(Tag).filter(Tag.id.in_(tag_ids)) \
-            .order_by(Tag.id).all()
+        tags = s.query(Tag).filter(Tag.name.in_(tag_names)).all()
 
-        if [t.id for t in tags] != sorted(tag_ids):
-            abort(422, 'Wrong tag ids')
+        if sorted(tag_names) != sorted([t.name for t in tags]):
+            abort(422, 'Wrong tags')

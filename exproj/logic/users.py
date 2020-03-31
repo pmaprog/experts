@@ -35,8 +35,8 @@ def update(u_id, new_data):
             if param == 'tags':
                 if not current_user.has_access('moderator'):
                     abort(403, 'You cant change tags')
-                u.tags = s.query(Tag).filter(Tag.id.in_(value)).all()
+                u.tags = s.query(Tag).filter(Tag.name.in_(value)).all()
             elif param == 'interests':
-                u.interests = s.query(Tag).filter(Tag.id.in_(value)).all()
+                u.interests = s.query(Tag).filter(Tag.name.in_(value)).all()
             else:
                 setattr(u, param, value)

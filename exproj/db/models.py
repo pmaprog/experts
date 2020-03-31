@@ -71,18 +71,12 @@ class Tag(Base):
     __tablename__ = 'tags'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True, nullable=False)
+    name = Column(String, unique=True)
 
     users_interests = relationship('User', secondary=d_user_interests,
                                    lazy='dynamic')
     users_tags = relationship('User', secondary=d_user_tags, lazy='dynamic')
     posts = relationship('Post', secondary=d_post_tags, lazy='dynamic')
-
-    def as_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name
-        }
 
 
 class User(Base, UserMixin):
