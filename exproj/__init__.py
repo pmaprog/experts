@@ -17,7 +17,7 @@ logger.addHandler(console_output_handler)
 logger.setLevel(logging.INFO)
 
 from . import config
-from exproj.logic.accounts import user_loader
+from exproj.logic.accounts import user_loader, Anonymous
 from .rest_api import accounts, users, posts, comments, tags
 
 def on_json_load_error(self, e):
@@ -33,16 +33,6 @@ app.config.update(
 )
 CORS(app)
 
-
-# only for development
-@app.before_request
-def before_request():
-    from flask import request
-    from flask_login import current_user
-    if request.args.get('admin') == '1':
-        current_user.access = 4
-
-
 from . import errors
 
 app.register_blueprint(accounts.bp)
@@ -55,6 +45,8 @@ app.register_blueprint(tags.bp)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.user_loader(user_loader)
+login_manager.anonymous_user = Anonymous
+
 
 def run_debug():
     logger.setLevel(logging.DEBUG)

@@ -1,7 +1,10 @@
 from flask import abort
 
 
-def _slice(query, offset, limit):
+def slice(query, offset, limit):
+    if offset is None or limit is None:
+        return query.all()
+
     try:
         offset = int(offset)
         limit = int(limit)

@@ -2,7 +2,7 @@ from flask import abort
 from flask_login import current_user
 from sqlalchemy import or_
 
-from . import _slice
+from . import slice
 from exproj import logger
 from exproj.db import *
 
@@ -36,10 +36,7 @@ def get_many(PostClass, u_id=None, closed=None,
             else:
                 query = query.filter(Question.closed.is_(False))
 
-        if offset and limit:
-            data = _slice(query, offset, limit)
-        else:
-            data = query.all()
+        data = slice(query, offset, limit)
 
         posts = [p.as_dict() for p in data]
         return posts
@@ -50,9 +47,8 @@ def get(PostClass, p_id):
         p = PostClass.get_or_404(s, p_id)
 
         if (PostClass == Question and p.closed
-                and (not current_user.is_authenticated
-                     or not current_user.has_access('expert'))
-                and not p.u_id != current_user.id):
+                and not current_user.has_access('expert')
+                and p.u_id != current_user.id):
             abort(403)
 
         return p.as_dict()
@@ -72,6 +68,7 @@ def create(PostClass, data):
         elif PostClass == Article:
             p = Article(u_id=u_id, title=data['title'], body=data['body'])
 
+        # assigning tags to a post from data
         p.tags = s.query(Tag).filter(Tag.name.in_(data['tags'])).all()
 
         s.add(p)
@@ -186,24 +183,16 @@ def get_post_comments(PostClass, p_id, offset=None, limit=None):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
 
-        if (PostClass == Question and p.closed and
-                (not current_user.is_authenticated
-                    or not current_user.has_access('expert'))):
+        if (PostClass == Question and p.closed
+                and not current_user.has_access('expert')):
             abort(403, 'You must be an expert')
 
-        query = (
-            p.comments
-            .filter(Comment.status == 'active')
-            .order_by(Comment.creation_date.desc())
-        )
+        query = (p.comments
+                 .filter(Comment.status == 'active')
+                 .order_by(Comment.creation_date.desc()))
 
-        if offset and limit:
-            data = _slice(query, offset, limit)
-        else:
-            data = query.all()
-
+        data = slice(query, offset, limit)
         comments = [c.as_dict() for c in data]
-
         return comments
 
 

@@ -4,10 +4,21 @@ import nanoid
 import uuid
 
 from flask import abort
-from flask_login import current_user
+from flask_login import current_user, AnonymousUserMixin
 
 from exproj import config, util
 from exproj.db import *
+
+
+class Anonymous(AnonymousUserMixin):
+    def __init__(self):
+        self.access = USER_ACCESS['guest']
+
+    def has_access(self, access):
+        return False
+
+    def can_answer(self, q):
+        return False
 
 
 def user_loader(cookie_id):
@@ -66,9 +77,10 @@ def register_user(data):
             else:
                 abort(409, 'Trying to register existing user')
         else:
-            user = User(email=data['email'], name=data['name'],
-                        surname=data['surname'], password=pw,
-                        position=data['position'],
+            user = User(email=data['email'],
+                        name=data['name'],
+                        surname=data['surname'],
+                        password=pw,
                         confirmation_link=confirmation_link)
             s.add(user)
         if config.DEFAULT_USER_STATUS == 'unconfirmed':

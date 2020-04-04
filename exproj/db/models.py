@@ -15,11 +15,12 @@ from . import Base, get_session
 from .. import config
 
 USER_ACCESS = {
-    'user':       0,
-    'expert':     1,
-    'moderator':  2,
-    'admin':      3,
-    'superadmin': 4
+    'guest':      0,
+    'user':       1,
+    'expert':     2,
+    'moderator':  3,
+    'admin':      4,
+    'superadmin': 5
 }
 
 Account_status = ENUM('unconfirmed', 'active', 'deleted',
@@ -210,12 +211,12 @@ class Question(Post):
     }
 
     def as_dict(self):
-        d = {
+        d = super().as_dict()
+        d.update({
             'closed': self.closed,
             'only_experts_answer': self.only_experts_answer,
             'only_chosen_tags': self.only_chosen_tags
-        }
-        d.update(super().as_dict())
+        })
         return d
 
 

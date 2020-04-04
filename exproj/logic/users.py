@@ -1,4 +1,4 @@
-from . import _slice
+from . import slice
 from exproj.db import *
 
 
@@ -6,10 +6,7 @@ def get_many(offset=None, limit=None):
     with get_session() as s:
         query = s.query(User).order_by(User.registration_date.desc())
 
-        if offset and limit:
-            data = _slice(query, offset, limit)
-        else:
-            data = query.all()
+        data = slice(query, offset, limit)
 
         return [u.as_dict() for u in data]
 

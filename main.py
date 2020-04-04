@@ -14,7 +14,9 @@ def main():
 
     parser.add_argument('--create-tables', type=str, dest='password',
                         help='Creates data base tables before launch.')
-    parser.add_argument('--debug', action='store_true', help='Use it for activate debug mode')
+
+    parser.add_argument('--debug', action='store_true',
+                        help='Use it for activate debug mode')
 
     args = parser.parse_args()
 
