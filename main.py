@@ -1,5 +1,3 @@
-from dotenv import load_dotenv
-load_dotenv()
 import urllib3
 from argparse import ArgumentParser
 import bcrypt

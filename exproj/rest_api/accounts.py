@@ -1,10 +1,10 @@
-from flask import Blueprint
+from flask import Blueprint, abort, jsonify
 from flask_login import (login_required, login_user, logout_user,
                          current_user)
 
-from . import *
+from . import make_ok, get_json
 from exproj.logic import accounts as accounts_logic
-from ..db import USER_ACCESS
+from exproj.db import USER_ACCESS
 from exproj.validation import schemas
 
 bp = Blueprint('accounts', __name__)
@@ -20,7 +20,8 @@ def login_status():
             'id': current_user.id,
             'name': current_user.name,
             'surname': current_user.surname,
-            'email': current_user.email
+            'email': current_user.email,
+            'access': current_user.access
         }
 
     return jsonify(status)

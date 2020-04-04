@@ -3,9 +3,19 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from contextlib import contextmanager
 
-from .. import config, logger
-
 from flask import abort
+
+from exproj import config, logger
+
+
+USER_ACCESS = {
+    'guest':      0,
+    'user':       1,
+    'expert':     2,
+    'moderator':  3,
+    'admin':      4,
+    'superadmin': 5
+}
 
 _engine = create_engine(config.DB_CONNECTION_STRING)
 _Session = sessionmaker(bind=_engine, expire_on_commit=False)

@@ -1,4 +1,8 @@
 import os
+from types import SimpleNamespace
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def _get_db_connection_string():
@@ -6,6 +10,10 @@ def _get_db_connection_string():
     if db_connection_string:
         return db_connection_string
     return 'postgresql://{PGUSER}:{PGPASSWORD}@{PGHOST}:{PGPORT}/{PGDATABASE}'.format(**os.environ)
+
+
+def _get_number(env):
+    return int(os.getenv(env))
 
 
 CSRF_ENABLED = False if os.getenv('DISABLE_CSRF') else True
@@ -21,3 +29,28 @@ SMTP_HOST = os.getenv('SMTP_HOST')
 MAIL_LOGIN = os.getenv('MAIL_LOGIN')
 MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
 SITE_ADDR = os.getenv('SITE_ADDR')
+
+MAX_FILE_SIZE = _get_number('MAX_FILE_SIZE') * 1024 * 1024
+FILE_UPLOADS = SimpleNamespace()
+FILE_UPLOADS.PARENT_FOLDER = os.getenv('FILE_UPLOADS_PARENT_FOLDER')
+FILE_UPLOADS.TEMP_FOLDER = 'tmp'
+FILE_UPLOADS.FILE_SETS = {
+    'AVATAR': SimpleNamespace(),
+}
+avatars = FILE_UPLOADS.FILE_SETS['AVATAR']
+avatars.DIRECTORY = 'avatars'
+avatars.MAX_SIZE = 8 * 1024 * 1024
+avatars.ALLOWED_EXTENSIONS = ('jpg', 'png')
+avatars.ALLOWED_MIME_TYPES = ('image/jpeg', 'image/jpg', 'image/png')
+
+# reports = FILE_UPLOADS.FILE_SETS['REPORT']
+# reports.FOLDER = 'reports'
+# reports.ALLOWED_EXTENSIONS = ('doc', 'docx', 'ppt', 'pptx', 'pdf')
+# reports.ALLOWED_MIME_TYPES = (
+#                                 'application/msword',
+#                                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+#                                 'application/vnd.ms-powerpoint',
+#                                 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+#                                 'application/pdf'
+#                             )
+# reports.MAX_SIZE = MAX_FILE_SIZE
