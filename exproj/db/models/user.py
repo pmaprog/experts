@@ -74,7 +74,8 @@ class User(Base, UserMixin):
             'status': self.status,
             'question_count': self.question_count,
             'article_count': self.article_count,
-            'comment_count': self.comment_count
+            'comment_count': self.comment_count,
+            'has_avatar': self.avatar is not None
         }
 
     def has_access(self, access):

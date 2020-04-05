@@ -1,10 +1,10 @@
 from flask import abort
 from flask_login import current_user
-from sqlalchemy import or_
 
 from . import slice
 from exproj import logger
-from exproj.db import *
+from exproj.db import (get_session, Question, Article, Tag, Comment,
+                       DCommentVotes, DPostVotes)
 
 
 def get_many(PostClass, u_id=None, closed=None,

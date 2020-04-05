@@ -2,7 +2,7 @@ import json
 from werkzeug.exceptions import HTTPException, BadRequest
 from schema import SchemaError
 
-from . import app, logger
+from exproj import app, logger
 
 
 @app.errorhandler(HTTPException)

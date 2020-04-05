@@ -61,8 +61,8 @@ def create_tables(password):
     logger.info('Tables was created')
     with get_session() as s:
         root = User(
-            email='root_mail',
-            password=password,
+            email=config.SUPER_ADMIN_MAIL,
+            password=config.SUPER_ADMIN_PASSWORD,
             name='Name',
             surname='Surname',
             status='active',

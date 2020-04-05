@@ -1,6 +1,6 @@
-from flask import Blueprint
+from flask import Blueprint, jsonify, request
 
-from . import *
+from . import make_ok
 from exproj.logic import comments as comments_logic
 
 bp = Blueprint('comments', __name__, url_prefix='/comment')

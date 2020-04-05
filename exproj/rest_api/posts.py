@@ -1,8 +1,8 @@
-from flask import Blueprint
+from flask import Blueprint, request, jsonify, abort
 from flask_login import login_required, current_user
 
-from . import *
-from exproj.db import *
+from . import make_ok, get_json
+from exproj.db import Question, Article
 from exproj.util import get_post_class, routes
 from exproj.logic import posts as posts_logic
 from exproj.validation import validate_tags, schemas

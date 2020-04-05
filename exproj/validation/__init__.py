@@ -1,4 +1,6 @@
-from exproj.db import *
+from flask import abort
+
+from exproj.db import get_session, Tag
 
 
 def validate_tags(tag_names):

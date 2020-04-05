@@ -3,7 +3,7 @@ from flask_login import current_user
 
 from exproj import logger
 from exproj.db import get_session
-from exproj.db import User, Post, Question, Article, Comment
+from exproj.db import Question, Comment
 
 
 def get(c_id):

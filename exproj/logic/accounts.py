@@ -7,7 +7,7 @@ from flask import abort
 from flask_login import current_user, AnonymousUserMixin
 
 from exproj import config, util
-from exproj.db import *
+from exproj.db import get_session, USER_ACCESS, User
 
 
 class Anonymous(AnonymousUserMixin):
@@ -163,7 +163,8 @@ def ban_user(u_id):
     with get_session() as s:
         u = User.get_or_404(s, u_id)
 
-        if not current_user.has_access('moderator'):
+        if (u.has_access('moderator')
+                and not current_user.has_access('moderator')):
             abort(403)
 
         if u.status == 'banned':
