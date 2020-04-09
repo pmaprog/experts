@@ -22,9 +22,6 @@ SECRET_KEY = os.getenv('SECRET_KEY', os.urandom(24))
 HOST = os.getenv('HOST_ADDR', '0.0.0.0')
 PORT = int(os.getenv('PORT', '8080'))
 DB_CONNECTION_STRING = _get_db_connection_string()
-# RUNTIME_FOLDER = os.path.dirname(os.path.abspath(__file__))
-# SCRIPTS_FOLDER = os.getenv('SCRIPT_FOLDER',
-#                            '{}/evproj/scripts'.format(RUNTIME_FOLDER))
 
 DEFAULT_USER_STATUS = os.getenv('DEFAULT_USER_STATUS')
 SUPER_ADMIN_MAIL = os.getenv('SUPER_ADMIN_MAIL')
@@ -48,15 +45,3 @@ avatars.DIRECTORY = join(FILE_UPLOADS.PARENT_DIRECTORY, 'avatars')
 avatars.MAX_SIZE = 8 * 1024 * 1024
 avatars.ALLOWED_EXTENSIONS = ('jpg', 'png')
 avatars.ALLOWED_MIME_TYPES = ('image/jpeg', 'image/jpg', 'image/png')
-
-# reports = FILE_UPLOADS.FILE_SETS['REPORT']
-# reports.FOLDER = 'reports'
-# reports.ALLOWED_EXTENSIONS = ('doc', 'docx', 'ppt', 'pptx', 'pdf')
-# reports.ALLOWED_MIME_TYPES = (
-#                                 'application/msword',
-#                                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-#                                 'application/vnd.ms-powerpoint',
-#                                 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-#                                 'application/pdf'
-#                             )
-# reports.MAX_SIZE = MAX_FILE_SIZE
