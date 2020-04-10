@@ -3,8 +3,8 @@ import string
 import smtplib
 from email.message import EmailMessage
 
-from . import config
-from .db import *
+from exproj import config
+from exproj.db import Question, Article, Comment
 
 
 def routes(bp, types, rule='', **options):

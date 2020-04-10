@@ -1,10 +1,11 @@
-from exproj.db import *
+from flask import abort
+
+from exproj.db import get_session, Tag
 
 
-def validate_domains(domain_ids):
+def validate_tags(tag_names):
     with get_session() as s:
-        domains = s.query(Domain).filter(Domain.id.in_(domain_ids)) \
-            .order_by(Domain.id).all()
+        tags = s.query(Tag).filter(Tag.name.in_(tag_names)).all()
 
-        if [d.id for d in domains] != sorted(domain_ids):
-            abort(422, 'Wrong domain ids')
+        if sorted(tag_names) != sorted([t.name for t in tags]):
+            abort(422, 'Wrong tags')

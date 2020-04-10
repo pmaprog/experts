@@ -1,46 +1,45 @@
 from flask import abort
 from flask_login import current_user
-from sqlalchemy import or_
 
+from . import slice
 from exproj import logger
-from exproj.db import *
-from exproj.validation import validate_domains
+from exproj.db import (get_session, Question, Article, Tag, Comment, User,
+                       DCommentVotes, DPostVotes)
 
 
-def get_many(PostClass, u_id=None, closed=None, offset=None, limit=None):
+def get_many(PostClass, u_id=None, closed=None,
+             tags=None, offset=None, limit=None, archived=None):
     with get_session() as s:
-        query = s.query(PostClass)\
-            .filter(PostClass.status == 'active')\
+        query = (
+            s.query(PostClass)
+            .filter(PostClass.status == ('archived' if archived else 'active'))
             .order_by(PostClass.creation_date.desc())
+        )
 
         if u_id:
+            if not s.query(User).filter_by(id=u_id).count():
+                abort(404, f'User with id #{u_id} not found')
+
             query = query.filter(PostClass.u_id == u_id)
+
+        if tags:
+            query = query.filter(PostClass.tags.any(Tag.name.in_(tags)))
 
         if PostClass == Question:
             if closed and closed != '0':
                 if PostClass != Question:
-                    abort(422, '`closed` parameter is not compatible with article')
-                if not current_user.has_access('expert'):
+                    abort(422, '`closed` parameter is'
+                               ' available only for questions')
+
+                if (not current_user.has_access('expert')
+                        and current_user.id != u_id):
                     abort(403, 'You can\'t view closed questions')
+
                 query = query.filter(Question.closed.is_(True))
             else:
                 query = query.filter(Question.closed.is_(False))
 
-        if offset and limit:
-            try:
-                offset = int(offset)
-                limit = int(limit)
-            except:
-                abort(422, 'query parameters '
-                           '`offset` and `limit` should be numbers')
-
-            if offset < 0 or limit < 1:
-                abort(422, 'query parameters '
-                           '`offset` or `limit` has wrong values')
-
-            data = query.slice(offset, offset + limit)
-        else:
-            data = query.all()
+        data = slice(query, offset, limit)
 
         posts = [p.as_dict() for p in data]
         return posts
@@ -48,9 +47,15 @@ def get_many(PostClass, u_id=None, closed=None, offset=None, limit=None):
 
 def get(PostClass, p_id):
     with get_session() as s:
-        p = PostClass.get_or_404(s, p_id)
+        p = s.query(PostClass).get(p_id)
+        if (not p or p.status == 'deleted'
+                or (p.status == 'archived' and current_user.id != p.u_id
+                    and not current_user.has_access('moderator'))):
+            abort(404)
 
-        if p.closed and not current_user.has_access('expert'):
+        if (PostClass == Question and p.closed
+                and not current_user.has_access('expert')
+                and p.u_id != current_user.id):
             abort(403)
 
         return p.as_dict()
@@ -61,17 +66,20 @@ def create(PostClass, data):
 
     with get_session() as s:
         s.add(current_user)
+
         if PostClass == Question:
             p = Question(u_id=u_id, title=data['title'], body=data['body'],
                          only_experts_answer=data['only_experts_answer'],
-                         only_chosen_domains=data['only_chosen_domains'],
+                         only_chosen_tags=data['only_chosen_tags'],
                          closed=data['closed'])
         elif PostClass == Article:
             p = Article(u_id=u_id, title=data['title'], body=data['body'])
+
+        # assigning tags to a post from data
+        p.tags = s.query(Tag).filter(Tag.name.in_(data['tags'])).all()
+
         s.add(p)
         s.commit()
-        _update_domains(p.id, data['domains'])
-        # current_user.increment_count(PostClass)
 
         if PostClass == Question:
             current_user.question_count += 1
@@ -87,8 +95,8 @@ def delete(PostClass, p_id):
 
         p = PostClass.get_or_404(s, p_id)
 
-        if (not current_user.has_access('moderator') and
-                p.u_id != current_user.id):
+        if (not current_user.has_access('moderator')
+                and p.u_id != current_user.id):
             abort(403)
 
         if PostClass == Question:
@@ -96,36 +104,48 @@ def delete(PostClass, p_id):
         elif PostClass == Article:
             current_user.article_count -= 1
 
-        # todo: decrease comment_count for all users who comment to the post
+        for comment in p.comments.all():
+            comment.author.comment_count -= 1
+            comment.status = 'deleted'
+
         p.status = 'deleted'
 
 
-def _update_domains(p_id, domain_ids):
+def _archive(PostClass, p_id, cancel):
     with get_session() as s:
-        domains = s.query(Domain).filter(Domain.id.in_(domain_ids)) \
-            .order_by(Domain.id).all()
+        if PostClass == Comment:
+            raise TypeError('Cannot archive comment')
 
-        s.query(DPostDomains).filter(DPostDomains.p_id == p_id).delete()
+        p = s.query(PostClass).get(p_id)
+        if not p or p.status == 'deleted':
+            abort(404, f'{PostClass.__name__} with id #{p_id} not found')
 
-        for d in domains:
-            if (d.parent_id is not None and  # if its subdomain
-                    d.parent_id not in domain_ids):
-                s.add(DPostDomains(p_id=p_id, d_id=d.parent_id,
-                                   imaginary=True))
-            s.add(DPostDomains(p_id=p_id, d_id=d.id))
+        if (not current_user.has_access('moderator')
+                and p.u_id != current_user.id):
+            abort(403)
+
+        p.status = 'archived' if not cancel else 'active'
+
+
+def archive(PostClass, p_id):
+    _archive(PostClass, p_id, False)
+
+
+def unarchive(PostClass, p_id):
+    _archive(PostClass, p_id, True)
 
 
 def update(PostClass, p_id, new_data):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
 
-        if (not current_user.has_access('moderator') and
-                p.u_id != current_user.id):
+        if (not current_user.has_access('moderator')
+                and p.u_id != current_user.id):
             abort(403)
 
         for param, value in new_data.items():
-            if param == 'domains':
-                _update_domains(p_id, value)
+            if param == 'tags':
+                p.tags = s.query(Tag).filter(Tag.name.in_(value)).all()
             else:
                 setattr(p, param, value)
 
@@ -144,13 +164,13 @@ def toggle_vote(PostClass, p_id, action):
 
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
-        if (PostClass == Question and
-                p.closed and not current_user.has_access('expert')):
+        if (PostClass == Question and p.closed
+                and not current_user.has_access('expert')):
             abort(403)
 
         if PostClass == Comment:
-            if (isinstance(p.post, Question) and
-                    p.closed and not current_user.has_access('expert')):
+            if (isinstance(p.post, Question) and p.post.closed
+                    and not current_user.has_access('expert')):
                 abort(403)
             cur_vote = s.query(DCommentVotes).get((u_id, p_id))
             new_vote = DCommentVotes(u_id=u_id, c_id=p_id)
@@ -163,12 +183,15 @@ def toggle_vote(PostClass, p_id, action):
                 if cur_vote.upvoted:
                     s.delete(cur_vote)
                     p.score -= 1
+                    p.author.rating -= 1
                     return 'deleted'
                 else:
                     p.score += 2
+                    p.author.rating += 2
                     cur_vote.upvoted = True
             else:
                 p.score += 1
+                p.author.rating += 1
                 new_vote.upvoted = True
                 s.add(new_vote)
             return 'up'
@@ -177,12 +200,15 @@ def toggle_vote(PostClass, p_id, action):
                 if not cur_vote.upvoted:
                     s.delete(cur_vote)
                     p.score += 1
+                    p.author.rating += 1
                     return 'deleted'
                 else:
                     p.score -= 2
+                    p.author.rating -= 2
                     cur_vote.upvoted = False
             else:
                 p.score -= 1
+                p.author.rating -= 1
                 new_vote.upvoted = False
                 s.add(new_vote)
             return 'down'
@@ -190,16 +216,20 @@ def toggle_vote(PostClass, p_id, action):
             raise ValueError('Action should be only `up` or `down`')
 
 
-def get_post_comments(PostClass, p_id):
+def get_post_comments(PostClass, p_id, offset=None, limit=None):
     with get_session() as s:
         p = PostClass.get_or_404(s, p_id)
 
-        if p.closed and not current_user.has_access('expert'):
+        if (PostClass == Question and p.closed
+                and not current_user.has_access('expert')):
             abort(403, 'You must be an expert')
 
-        comments = [c.as_dict() for c in p.comments
-                    .filter(Comment.status == 'active')
-                    .order_by(Comment.creation_date.desc()).all()]
+        query = (p.comments
+                 .filter(Comment.status == 'active')
+                 .order_by(Comment.creation_date.desc()))
+
+        data = slice(query, offset, limit)
+        comments = [c.as_dict() for c in data]
         return comments
 
 
@@ -211,11 +241,10 @@ def create_comment(PostClass, p_id, text):
         p = PostClass.get_or_404(s, p_id)
 
         if PostClass == Question and not current_user.can_answer(p):
-            abort(403, 'You must be an expert to answer the question')
+            abort(403, 'You cant create answer because you are not an expert or'
+                       ' do not have expert status in the areas of question')
 
         comment = Comment(u_id=u_id, p_id=p_id, text=text)
         p.comments.append(comment)
         p.comment_count += 1
         current_user.comment_count += 1
-        s.commit()
-        return comment.as_dict()

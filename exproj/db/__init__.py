@@ -3,9 +3,19 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from contextlib import contextmanager
 
-from .. import config, logger
-
 from flask import abort
+
+from exproj import config, logger
+
+
+USER_ACCESS = {
+    'guest':      0,
+    'user':       1,
+    'expert':     2,
+    'moderator':  3,
+    'admin':      4,
+    'superadmin': 5
+}
 
 _engine = create_engine(config.DB_CONNECTION_STRING)
 _Session = sessionmaker(bind=_engine, expire_on_commit=False)
@@ -15,7 +25,7 @@ class _Base:
     @classmethod
     def get_or_404(cls, s, id_):
         obj = s.query(cls).get(id_)
-        if obj and obj.status == 'active':
+        if obj and (not hasattr(obj, 'status') or obj.status == 'active'):
             return obj
         abort(404, f'{cls.__name__} with id #{id_} not found')
 
@@ -51,8 +61,8 @@ def create_tables(password):
     logger.info('Tables was created')
     with get_session() as s:
         root = User(
-            email='root_mail',
-            password=password,
+            email=config.SUPER_ADMIN_MAIL,
+            password=config.SUPER_ADMIN_PASSWORD,
             name='Name',
             surname='Surname',
             status='active',

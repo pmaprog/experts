@@ -1,13 +1,30 @@
-from flask import Blueprint
+from flask import Blueprint, abort, jsonify
 from flask_login import (login_required, login_user, logout_user,
                          current_user)
 
-from . import *
+from . import make_ok, get_json
 from exproj.logic import accounts as accounts_logic
-from ..db import USER_ACCESS
+from exproj.db import USER_ACCESS
 from exproj.validation import schemas
 
 bp = Blueprint('accounts', __name__)
+
+
+@bp.route('/login_status')
+def login_status():
+    is_auth = current_user.is_authenticated
+
+    status = dict(is_logged_in=is_auth)
+    if is_auth:
+        status['info'] = {
+            'id': current_user.id,
+            'name': current_user.name,
+            'surname': current_user.surname,
+            'email': current_user.email,
+            'role': current_user.get_role()
+        }
+
+    return jsonify(status)
 
 
 @bp.route('/login', methods=['POST'])
@@ -55,8 +72,8 @@ def change_password():
     data = get_json()
 
     user = accounts_logic.change_password(current_user.id,
-                                    data['old_password'],
-                                    data['new_password'])
+                                          data['old_password'],
+                                          data['new_password'])
     login_user(user)
     return make_ok('Password has beed changed')
 

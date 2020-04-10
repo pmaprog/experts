@@ -7,8 +7,7 @@ from flask import abort
 from flask_login import current_user
 
 from exproj import config, util
-from exproj.db import get_session, User, USER_ACCESS
-from exproj.validation import schemas
+from exproj.db import get_session, USER_ACCESS, User
 
 
 def user_loader(cookie_id):
@@ -67,9 +66,10 @@ def register_user(data):
             else:
                 abort(409, 'Trying to register existing user')
         else:
-            user = User(email=data['email'], name=data['name'],
-                        surname=data['surname'], password=pw,
-                        position=data['position'],
+            user = User(email=data['email'],
+                        name=data['name'],
+                        surname=data['surname'],
+                        password=pw,
                         confirmation_link=confirmation_link)
             s.add(user)
         if config.DEFAULT_USER_STATUS == 'unconfirmed':
@@ -151,10 +151,14 @@ def self_delete(u_id, password):
 def ban_user(u_id):
     with get_session() as s:
         u = User.get_or_404(s, u_id)
-        if not current_user.has_access('moderator'):
+
+        if (u.has_access('moderator')
+                or not current_user.has_access('moderator')):
             abort(403)
+
         if u.status == 'banned':
             abort(409, 'User has already banned')
+
         u.status = 'banned'
 
 
