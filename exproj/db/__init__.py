@@ -62,7 +62,7 @@ def create_tables(password):
     with get_session() as s:
         root = User(
             email=config.SUPER_ADMIN_MAIL,
-            password=config.SUPER_ADMIN_PASSWORD,
+            password=password,
             name='Name',
             surname='Surname',
             status='active',
