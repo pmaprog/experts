@@ -42,7 +42,10 @@ def update_user(u_id):
 @bp.route('/<int:u_id>/avatar')
 def get_avatar(u_id):
     path = users_logic.get_avatar(u_id)
-    return send_file('../' + path, as_attachment=True)
+    if path:
+        return send_file('../' + path, as_attachment=True)
+
+    return '', 204
 
 
 @bp.route('/<int:u_id>/avatar', methods=['PUT'])

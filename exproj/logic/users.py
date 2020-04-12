@@ -47,7 +47,7 @@ def get_avatar(u_id):
         u = User.get_or_404(s, u_id)
 
         if u.avatar is None:
-            abort(404, 'Avatar not found')
+            return None
 
         return join(config.avatars.DIRECTORY, f'avatar{u_id}.{u.avatar.ext}')
 
