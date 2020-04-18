@@ -27,6 +27,9 @@ def update(c_id, text):
                 and comment.post.u_id != current_user.id):
             abort(403)
 
+        if not text:
+            abort(422, 'Comment text should not be empty')
+
         comment.text = text
 
 
